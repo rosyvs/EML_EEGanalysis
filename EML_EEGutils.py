@@ -57,7 +57,8 @@ class emleeg(object):
             Z[:,c] = z
             print("...completed detrending for channel {0} of {1}".format(c,len(eegchannels)))
 
-        self.raw = mne.io.RawArray(Z.T,self.raw.info)
+        #self.raw = mne.io.RawArray(Z.T,self.raw.info)
+        self.raw._data = Z.T
 
     def checkChannels(self):
         # use noisy channel detection from PREP pipeline
