@@ -1,0 +1,12 @@
+matplotlib>=1.5.1
+pytest<5.4
+pytest-cov
+pytest-sugar
+black
+pydocstyle
+sphinx
+sphinx_gallery
+pillow
+sphinx_bootstrap_theme
+numpydoc
+check-manifest
