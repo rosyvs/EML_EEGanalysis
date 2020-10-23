@@ -218,3 +218,245 @@ Number of Samples : 7029956
 Channels Recorded : 11
 Number of EEG channels Recorded 8
 Number of Bad channels: 0
+Found 0 uniquely bad channels.
+
+0 by n/a: []
+
+0 by flat: []
+
+0 by deviation: []
+
+0 by hf noise: []
+
+0 by correl: []
+
+0 by SNR []
+
+0 by dropout: []
+
+0 by ransac: []
+Sample Rate : 1000.0
+Number of Samples : 7029956
+Channels Recorded : 11
+Number of EEG channels Recorded 8
+Number of Bad channels: 0
+Found 0 uniquely bad channels.
+
+0 by n/a: []
+
+0 by flat: []
+
+0 by deviation: []
+
+0 by hf noise: []
+
+0 by correl: []
+
+0 by SNR []
+
+0 by dropout: []
+
+0 by ransac: []
+Sample Rate : 1000.0
+Number of Samples : 7029956
+Channels Recorded : 11
+Number of EEG channels Recorded 8
+Number of Bad channels: 0
+Found 0 uniquely bad channels.
+
+0 by n/a: []
+
+0 by flat: []
+
+0 by deviation: []
+
+0 by hf noise: []
+
+0 by correl: []
+
+0 by SNR []
+
+0 by dropout: []
+
+0 by ransac: []
+Sample Rate : 1000.0
+Number of Samples : 7029956
+Channels Recorded : 11
+Number of EEG channels Recorded 8
+Number of Bad channels: 0
+Found 0 uniquely bad channels.
+
+0 by n/a: []
+
+0 by flat: []
+
+0 by deviation: []
+
+0 by hf noise: []
+
+0 by correl: []
+
+0 by SNR []
+
+0 by dropout: []
+
+0 by ransac: []
+Sample Rate : 1000.0
+Number of Samples : 4280197
+Channels Recorded : 11
+Number of EEG channels Recorded 8
+Number of Bad channels: 0
+Found 0 uniquely bad channels.
+
+0 by n/a: []
+
+0 by flat: []
+
+0 by deviation: []
+
+0 by hf noise: []
+
+0 by correl: []
+
+0 by SNR []
+
+0 by dropout: []
+
+0 by ransac: []
+Sample Rate : 1000.0
+Number of Samples : 4280197
+Channels Recorded : 11
+Number of EEG channels Recorded 8
+Number of Bad channels: 0
+Found 2 uniquely bad channels.
+
+0 by n/a: []
+
+0 by flat: []
+
+0 by deviation: []
+
+2 by hf noise: ['CCP5h', 'CCP6h']
+
+0 by correl: []
+
+0 by SNR []
+
+0 by dropout: []
+
+0 by ransac: []
+Sample Rate : 1000.0
+Number of Samples : 4356017
+Channels Recorded : 11
+Number of EEG channels Recorded 8
+Number of Bad channels: 2
+Found 2 uniquely bad channels.
+
+0 by n/a: []
+
+0 by flat: []
+
+0 by deviation: []
+
+2 by hf noise: ['CCP5h', 'CCP6h']
+
+0 by correl: []
+
+0 by SNR []
+
+0 by dropout: []
+
+0 by ransac: []
+Sample Rate : 1000.0
+Number of Samples : 4356017
+Channels Recorded : 11
+Number of EEG channels Recorded 8
+Number of Bad channels: 2
+Found 2 uniquely bad channels.
+
+0 by n/a: []
+
+0 by flat: []
+
+1 by deviation: ['PPO9h']
+
+2 by hf noise: ['PPO9h', 'PPO10h']
+
+0 by correl: []
+
+0 by SNR []
+
+0 by dropout: []
+
+0 by ransac: []
+Sample Rate : 1000.0
+Number of Samples : 5856617
+Channels Recorded : 11
+Number of EEG channels Recorded 8
+Number of Bad channels: 2
+Found 1 uniquely bad channels.
+
+0 by n/a: []
+
+0 by flat: []
+
+0 by deviation: []
+
+1 by hf noise: ['CPz']
+
+0 by correl: []
+
+0 by SNR []
+
+0 by dropout: []
+
+0 by ransac: []
+Sample Rate : 1000.0
+Number of Samples : 6009944
+Channels Recorded : 11
+Number of EEG channels Recorded 8
+Number of Bad channels: 1
+Found 1 uniquely bad channels.
+
+0 by n/a: []
+
+0 by flat: []
+
+0 by deviation: []
+
+1 by hf noise: ['CPz']
+
+0 by correl: []
+
+0 by SNR []
+
+0 by dropout: []
+
+0 by ransac: []
+Sample Rate : 1000.0
+Number of Samples : 6009944
+Channels Recorded : 11
+Number of EEG channels Recorded 8
+Number of Bad channels: 1
+Found 0 uniquely bad channels.
+
+0 by n/a: []
+
+0 by flat: []
+
+0 by deviation: []
+
+0 by hf noise: []
+
+0 by correl: []
+
+0 by SNR []
+
+0 by dropout: []
+
+0 by ransac: []
+Sample Rate : 1000.0
+Number of Samples : 5583634
+Channels Recorded : 11
+Number of EEG channels Recorded 8
+Number of Bad channels: 0
