@@ -64,7 +64,7 @@ class NoisyChannels:
         self.bad_by_ransac = []
 
     def printAndWrite(self, s):
-        with open("eegReport.txt", 'a') as o:
+        with open("eegChannelReport.txt", 'a') as o:
             o.write(s)
             o.write("\n")
         print(s)
@@ -93,31 +93,31 @@ class NoisyChannels:
         bads = list(set(bads))
 
         if verbose:
-            self.printAndWrite("Found {} uniquely bad channels.".format(len(bads)))
-            self.printAndWrite("\n{} by n/a: {}".format(len(self.bad_by_nan), self.bad_by_nan))
-            self.printAndWrite("\n{} by flat: {}".format(len(self.bad_by_flat), self.bad_by_flat))
-            self.printAndWrite(
+            print("Found {} uniquely bad channels.".format(len(bads)))
+            print("\n{} by n/a: {}".format(len(self.bad_by_nan), self.bad_by_nan))
+            print("\n{} by flat: {}".format(len(self.bad_by_flat), self.bad_by_flat))
+            print(
                 "\n{} by deviation: {}".format(
                     len(self.bad_by_deviation), self.bad_by_deviation
                 )
             )
-            self.printAndWrite(
+            print(
                 "\n{} by hf noise: {}".format(
                     len(self.bad_by_hf_noise), self.bad_by_hf_noise
                 )
             )
-            self.printAndWrite(
+            print(
                 "\n{} by correl: {}".format(
                     len(self.bad_by_correlation), self.bad_by_correlation
                 )
             )
-            self.printAndWrite("\n{} by SNR {}".format(len(self.bad_by_SNR), self.bad_by_SNR))
-            self.printAndWrite(
+            print("\n{} by SNR {}".format(len(self.bad_by_SNR), self.bad_by_SNR))
+            print(
                 "\n{} by dropout: {}".format(
                     len(self.bad_by_dropout), self.bad_by_dropout
                 )
             )
-            self.printAndWrite(
+            print(
                 "\n{} by ransac: {}".format(len(self.bad_by_ransac), self.bad_by_ransac)
             )
         return bads
