@@ -36,9 +36,6 @@ class emleeg(object):
         sample_rate = self.raw.info["sfreq"]
         self.sampleRate = self.raw.info["sfreq"]
 
-        # Make a copy of the data
-        self.raw_copy = self.raw.copy()
-
     def robustDetrend(self,order=3,weights=None):
         # uses meegkit from nbara
         # for some reason I can only get this to work on each channel individually
@@ -55,7 +52,7 @@ class emleeg(object):
                 weights=np.ones_like(x)
             z, _, _ = meegkit.detrend.detrend(x, order, weights,basis='polynomials', threshold=5, n_iter=4, show=False)
             Z[:,c] = z
-            print("...completed detrending for channel {0} of {1}".format(c,len(eegchannels)))
+            print("...completed detrending for channel {0} of {1}".format(c+1,len(eegchannels)))
 
         #self.raw = mne.io.RawArray(Z.T,self.raw.info)
         self.raw._data = Z.T
@@ -90,3 +87,4 @@ def chn_name_mapping(ch_name):
         ch_name = ch_name.replace('FP', 'Fp')
 
     return ch_name
+
