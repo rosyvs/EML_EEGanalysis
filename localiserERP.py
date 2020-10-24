@@ -3,15 +3,16 @@ import pandas as pd
 import re
 
 # EEG analysis for EML: find localiser-evoked potentials 
-reprepro = False # re-do preprocessing. If False, attempts to load existing preprocessed data from outdir. 
-datadir = os.path.normpath('C:/Users/roso8920/Dropbox (Emotive Computing)/EyeMindLink/Data')
-outdir = os.path.normpath('../../Data/EEG_processed/')# save directory for processed EEG data
+rawdir = os.path.normpath('C:/Users/roso8920/Dropbox (Emotive Computing)/EyeMindLink/Data')
+preprodir = os.path.normpath('../../Data/EEG_processed/')# save directory for processed EEG data
 fnroot = 'EML1_'
-participants = range(50,51) # recall that range is exclusive in Python 
+participants = range(30,63) # recall that range is exclusive in Python 
 # TODO automatic generation of file list from particpants & loop
+# TODO read in preprocessed files 
 p=0
 pID= fnroot + '{:03d}'.format(participants[p])  
-print("\n\n\n~~~~~Processing pID~: {0}".format(pID))
+print("\n\n\n~~~~~ Computing Language Localiser response for: {0} ~~~~~".format(pID))
+
 pIDpath = os.path.normpath(datadir + "/" + pID + "/EEG" )
 print("Searching folder {0}".format(pIDpath))
 vhdrList = glob.glob(pIDpath + "/LA" +  "*.vhdr") # filenames starting 'LA' for SD card recording

@@ -169,6 +169,7 @@ class Noisydata:
 
         self.raw_copy.set_montage(montage)
         self.raw_copy.pick_types(eeg=True, stim=False)
+        print('DEBUG MSG: about to filter...')
         self.raw_copy.filter(
             l_freq=low_cut,
             h_freq=None,
