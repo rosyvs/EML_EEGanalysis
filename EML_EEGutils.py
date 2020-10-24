@@ -68,11 +68,14 @@ class emleeg(object):
         #pyprepobj.find_bad_by_correlation()
         bads = pyprepobj.get_bads(verbose = True)
 
-        pyprepobj.printAndWrite("Sample Rate : {0}".format(self.sampleRate))
-        pyprepobj.printAndWrite("Number of Samples : {0}".format(self.raw.n_times))
-        pyprepobj.printAndWrite("Channels Recorded : {0}".format(len(self.raw.info["ch_names"])))
-        pyprepobj.printAndWrite("Number of EEG channels Recorded {0}".format(len(self.ch_names_eeg)))
-        pyprepobj.printAndWrite("Number of Bad channels: {0}".format(len(bads)))
+        print("Sample Rate : {0}".format(self.sampleRate))
+        print("Number of Samples : {0}".format(self.raw.n_times))
+        print("Channels Recorded : {0}".format(len(self.raw.info["ch_names"])))
+        print("Number of EEG channels Recorded {0}".format(len(self.ch_names_eeg)))
+        print("Number of Bad channels: {0}".format(len(bads)))
+
+
+        
         self.raw.info['bads']= bads
         return bads
 
