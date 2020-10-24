@@ -7,7 +7,7 @@ reprepro = False # re-do preprocessing. If False, checks outdir and skips partic
 datadir = os.path.normpath('C:/Users/roso8920/Dropbox (Emotive Computing)/EyeMindLink/Data')
 outdir = os.path.normpath('../../Data/EEG_processed/')# save directory for processed EEG data
 fnroot = 'EML1_'
-participants = range(44,46) # recall that range is exclusive in Python 
+participants = range(27,63) # recall that range is exclusive in Python 
 # TODO automatic generation of file list from particpants & loop
 
 for p in participants:
