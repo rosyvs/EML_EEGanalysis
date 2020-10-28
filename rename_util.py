@@ -1,11 +1,17 @@
 import os
 
+# rename folders and files for when the experiment software was given the wrong pID
+# best practice is to copy the misnamed folder from dropbox first to your local directory so if you f&$* it up you haven't rekt the data
+
+old_name = 'EML1_0063'
+correct_name =  'EML1_063'
+
 paths = (os.path.join(root, filename)
-        for root, _, filenames in os.walk(r'C:\Users\roso8920\Dropbox (Emotive Computing)\EML Rosy\Data\eml1_058-')
+        for root, _, filenames in os.walk(r'C:\Users\roso8920\Dropbox (Emotive Computing)\EML Rosy\Data')
         for filename in filenames)
 
 for path in paths:
-    # the '#' in the example below will be replaced by the '-' in the filenames in the directory
-    newname = path.replace('eml1_058-', 'EML1_058')
+#   syntax: path.replace(old name, new name)
+    newname = path.replace(old_name, correct_name)
     if newname != path:
         os.renames(path, newname)
