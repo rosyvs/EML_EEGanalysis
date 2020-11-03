@@ -3,12 +3,12 @@ import pandas as pd
 import re
 
 # EEG analysis for EML: preprocessing
-reprepro = False # re-do preprocessing. If False, checks outdir and skips participants with a prepro'd file
+reprepro = True # re-do preprocessing. If False, checks outdir and skips participants with a prepro'd file
+plotTF = True
 datadir = os.path.normpath('C:/Users/roso8920/Dropbox (Emotive Computing)/EyeMindLink/Data')
 outdir = os.path.normpath('../../Data/EEG_processed/')# save directory for processed EEG data
 fnroot = 'EML1_'
-participants = range(27,63) # recall that range is exclusive in Python 
-# TODO automatic generation of file list from particpants & loop
+participants = range(19,67) # recall that range is exclusive in Python 
 
 for p in participants:
     pID= fnroot + '{:03d}'.format(p)  
@@ -36,18 +36,41 @@ for p in participants:
             e = emleeg(data_dir='')
             e.loadFile(f)
             e.extractInfo()
-            
-            e.raw_copy = e.raw.copy()
-            # Make a copy of the data before preprocessing
-
-            e.robustDetrend(order=11) # uses meegkit
+            e.prepro = e.raw.copy() # Make a copy of the data before preprocessing
+            e.zapline(nremove=4) # use meegkit to remove line noise with minimal distortion
+                # improves upon e.raw.notch_filter(np.arange(60, 241, 60)) # powerline filter
+            e.robustDetrend(order=11) # uses meegkit to detrend, removing slow drifts
+  
             e.checkChannels() # uses pyprep
-            e.raw.set_montage('standard_1005')
-            e.raw.interpolate_bads(reset_bads=False) # interpolate bad channels based on neighbours but keep them marked as 'bad'
-            e.raw.set_eeg_reference() # ref to average
-            e.raw.notch_filter(np.arange(60, 241, 60)) # powerline filter
+            e.prepro.set_montage('standard_1005')
+            e.prepro.interpolate_bads(reset_bads=False) # interpolate bad channels based on neighbours but keep them marked as 'bad'
+            e.prepro.set_eeg_reference() # ref to average
 
             # write preprocessed data to file
-            e.raw.save(fname=os.path.normpath(outdir + '/' + pID + '_p.fif'))
+            e.prepro.save(fname=os.path.normpath(outdir + '/' + pID + '_p.fif'),overwrite=True)
+
+            if plotTF:
+                # plt.ion()
+                scalings=dict(eeg=100e-6) # y axis scaling
+                # plot raw
+                f1=e.raw.plot(bad_color='r', title="raw",start=600,scalings=scalings,show=False)
+                # plot preprocessed
+                f2=e.prepro.plot(bad_color='r',title="preprocessed",start=600,scalings=scalings,show=False)
+                # plot PSD raw
+                f3=e.raw.plot_psd(fmax=100, picks = e.ch_names_eeg,show=False)
+                # plot PSD preprocessed
+                f4=e.prepro.plot_psd(fmax=100, picks = e.ch_names_eeg,show=False)
+
+                f1.figsize=[10,6.4]
+                f1.savefig(os.path.join(outdir, pID +"-raw.png"))
+                f2.figsize=[10,6.4]
+                f2.savefig(os.path.join(outdir, pID +"-preprocessed.png"))
+                f3.savefig(os.path.join(outdir, pID +"-rawPSD.png"))
+                f4.savefig(os.path.join(outdir, pID +"-preprocessedPSD.png"))
+                plt.close('all')
     else:
         print("{0}: Skipping preprocessing pipeline.".format(pID))
+
+# TODO
+    # access robust detrending and other external fn with https://mne.tools/stable/generated/mne.io.Raw.html#mne.io.Raw.apply_function
+    # autoreject instead of pyprep? http://autoreject.github.io/ 

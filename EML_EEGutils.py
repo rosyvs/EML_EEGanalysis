@@ -21,19 +21,15 @@ class emleeg(object):
     def loadFile(self, filename):
         print("Reading {0}".format(filename))
         self.raw = mne.io.read_raw_brainvision(self.data_dir + filename, preload=True)
-        #self.raw = mne.io.read_raw_edf(self.data_dir + filename, preload=True)
-        #self.raw.rename_channels(chn_name_mapping)
         ch_names = self.raw.ch_names
-        # self.raw.plot_psd()
-        # self.raw.plot(duration=5)
-        print(ch_names)
+        self.prepro = self.raw.copy() # make a copy of the data which will be modified in preprocessing
+        print('EEG channels: ' + ch_names)
 
     def extractInfo(self):
         # Extract some info
         eeg_index = mne.pick_types(self.raw.info, eeg=True, eog=False, meg=False)
         ch_names = self.raw.info["ch_names"]
         self.ch_names_eeg = list(np.asarray(ch_names)[eeg_index])
-        sample_rate = self.raw.info["sfreq"]
         self.sampleRate = self.raw.info["sfreq"]
 
     def robustDetrend(self,order=3,weights=None):
@@ -42,7 +38,7 @@ class emleeg(object):
         print("detrending data using meegkit robust detrending. Go make a cuppa :-)")
 
         # extract data matrix and info from mne object
-        X = self.raw.get_data().T # get eeg channels
+        X = self.prepro.get_data().T # get eeg channels
         eegchannels = mne.pick_types(self.raw.info,eeg=True)
         Z=X # this will be the detrended array to put back into an mne object
         # loop over channels
@@ -54,14 +50,24 @@ class emleeg(object):
             Z[:,c] = z
             print("...completed detrending for channel {0} of {1}".format(c+1,len(eegchannels)))
 
-        #self.raw = mne.io.RawArray(Z.T,self.raw.info)
-        self.raw._data = Z.T
+        self.prepro._data = Z.T
+
+    def zapline(self, nremove=2):
+        X = self.prepro.get_data().T
+        eegchannels = mne.pick_types(self.prepro.info,eeg=True)
+        Z=X # this will be the line-zapped array to put back into an mne object
+        # print(Z.shape)
+        # print(Z[:,eegchannels].shape)
+        z, artifact = meegkit.dss.dss_line(X[:,eegchannels],fline=60.0, sfreq=self.sampleRate, nremove=nremove)
+        Z[:,eegchannels] = z
+        self.prepro._data = Z.T
+        return self, artifact 
 
     def checkChannels(self):
         # use noisy channel detection from PREP pipeline
         # We use the local copy of pyprep from APril 2020 but pyprep has since been updated
         # TODO what has changed? I see the dev has removed a lot of the 'noisy' functions which is exactly what we use here - are there issues? 
-        pyprepobj = NoisyChannels(self.raw)
+        pyprepobj = NoisyChannels(self.prepro)
         pyprepobj.find_bad_by_nan_flat()
         pyprepobj.find_bad_by_deviation()
         pyprepobj.find_bad_by_hf_noise()
@@ -69,14 +75,14 @@ class emleeg(object):
         bads = pyprepobj.get_bads(verbose = True)
 
         print("Sample Rate : {0}".format(self.sampleRate))
-        print("Number of Samples : {0}".format(self.raw.n_times))
-        print("Channels Recorded : {0}".format(len(self.raw.info["ch_names"])))
+        print("Number of Samples : {0}".format(self.prepro.n_times))
+        print("Channels Recorded : {0}".format(len(self.prepro.info["ch_names"])))
         print("Number of EEG channels Recorded {0}".format(len(self.ch_names_eeg)))
         print("Number of Bad channels: {0}".format(len(bads)))
 
 
-        
-        self.raw.info['bads']= bads
+
+        self.prepro.info['bads']= bads
         return bads
 
 def chn_name_mapping(ch_name):

@@ -93,7 +93,4 @@ for f in vhdrList:
     e.av_lang.plot(exclude=[],spatial_colors=True)
 
 # TODO
-# interpolaate bad channels https://mne.tools/stable/generated/mne.io.Raw.html#mne.io.Raw.interpolate_bads 
     # add word onset events or EOG with https://mne.tools/stable/generated/mne.io.Raw.html#mne.io.Raw.add_events
-    # access robust detrending and other external fn with https://mne.tools/stable/generated/mne.io.Raw.html#mne.io.Raw.apply_function
-    # autoreject instead of ransac http://autoreject.github.io/ 
