@@ -22,6 +22,7 @@ class emleeg(object):
         self.raw = mne.io.read_raw_brainvision(self.data_dir + filename, preload=True)
         ch_names = self.raw.ch_names
         self.prepro = self.raw.copy() # make a copy of the data which will be modified in preprocessing
+        self.prepro.info['description'] = self.data_dir + filename
         print('Data channels: ' + ' '.join(ch_names))
 
     def extractInfo(self):

@@ -1,14 +1,16 @@
 from EML_EEGutils import *
 import pandas as pd
 import re
+"""
+EEG analysis for EML: preprocessing pipeline
+"""
 
-# EEG analysis for EML: preprocessing
 reprepro = True # re-do preprocessing. If False, checks outdir and skips participants with a prepro'd file
 plotTF = True
 datadir = os.path.normpath('C:/Users/roso8920/Dropbox (Emotive Computing)/EyeMindLink/Data')
 outdir = os.path.normpath('../../Data/EEG_processed/')# save directory for processed EEG data
 fnroot = 'EML1_'
-participants = range(67,70) # recall that range is exclusive in Python - it will do first : end-1
+participants = range(71,72) # recall that range is exclusive in Python - it will do first : end-1
 
 for p in participants:
     pID= fnroot + '{:03d}'.format(p)  
