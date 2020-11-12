@@ -8,7 +8,7 @@ plotTF = True
 datadir = os.path.normpath('C:/Users/roso8920/Dropbox (Emotive Computing)/EyeMindLink/Data')
 outdir = os.path.normpath('../../Data/EEG_processed/')# save directory for processed EEG data
 fnroot = 'EML1_'
-participants = range(19,67) # recall that range is exclusive in Python 
+participants = range(67,70) # recall that range is exclusive in Python - it will do first : end-1
 
 for p in participants:
     pID= fnroot + '{:03d}'.format(p)  
@@ -36,7 +36,6 @@ for p in participants:
             e = emleeg(data_dir='')
             e.loadFile(f)
             e.extractInfo()
-            e.prepro = e.raw.copy() # Make a copy of the data before preprocessing
             e.zapline(nremove=4) # use meegkit to remove line noise with minimal distortion
                 # improves upon e.raw.notch_filter(np.arange(60, 241, 60)) # powerline filter
             e.robustDetrend(order=11) # uses meegkit to detrend, removing slow drifts
@@ -44,14 +43,14 @@ for p in participants:
             e.checkChannels() # uses pyprep
             e.prepro.set_montage('standard_1005')
             e.prepro.interpolate_bads(reset_bads=False) # interpolate bad channels based on neighbours but keep them marked as 'bad'
-            e.prepro.set_eeg_reference() # ref to average
+            # e.prepro.set_eeg_reference() # ref to average
 
             # write preprocessed data to file
             e.prepro.save(fname=os.path.normpath(outdir + '/' + pID + '_p.fif'),overwrite=True)
 
             if plotTF:
                 # plt.ion()
-                scalings=dict(eeg=100e-6) # y axis scaling
+                scalings=dict(eeg=50e-6) # y axis scaling
                 # plot raw
                 f1=e.raw.plot(bad_color='r', title="raw",start=600,scalings=scalings,show=False)
                 # plot preprocessed
@@ -67,7 +66,7 @@ for p in participants:
                 f2.savefig(os.path.join(outdir, pID +"-preprocessed.png"))
                 f3.savefig(os.path.join(outdir, pID +"-rawPSD.png"))
                 f4.savefig(os.path.join(outdir, pID +"-preprocessedPSD.png"))
-                plt.close('all')
+                # plt.close('all')
     else:
         print("{0}: Skipping preprocessing pipeline.".format(pID))
 
