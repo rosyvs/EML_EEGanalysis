@@ -21,21 +21,20 @@ group_sent_erps = defaultdict(list)
 #%%
 for p in participants:
     pID= fnroot + '{:03d}'.format(p)  
-    print("\n\n\n~~~~~pID: {0}~~~~~".format(pID))
+    print_and_log("\n\n\n~~~~~pID: {0}~~~~~".format(pID))
     prepro_exists = False
     # check for existing preprocessed data first
     if os.path.isfile(os.path.normpath(preprodir + '/' + pID + '_p.fif')):
-        print("\n\n\n{0}: Existing preprocessed file found in {1}".format(pID,os.path.normpath(preprodir + '/' + pID + '_p.fif')))
+        print_and_log("\n\n\n{0}: Existing preprocessed file found in {1}".format(pID,os.path.normpath(preprodir + '/' + pID + '_p.fif')))
         prepro_exists = True 
     else:
-        print("\n\n\n{0}: Skipping analysis. No preprocessed file found in {1}".format(pID,os.path.normpath(preprodir + '/' + pID + '_p.fif')))
+        print_and_log("\n\n\n{0}: Skipping analysis. No preprocessed file found in {1}".format(pID,os.path.normpath(preprodir + '/' + pID + '_p.fif')))
         continue
 
-    print("\n\n\nComputing Language Localiser response for {0}".format(pID))
+    print_and_log("\n\n\nComputing Language Localiser response for {0}".format(pID))
 
     e = emleeg(data_dir='')
     e.prepro = mne.io.read_raw_fif(fname=os.path.normpath(preprodir + '/' + pID + '_p.fif'),preload=True)
-    e.prepro.set_eeg_reference() # ref to average
 
     # get events
     log_file = os.path.normpath(rawdir + "/" + pID + "/" + pID + '_Trials.txt')
@@ -47,12 +46,15 @@ for p in participants:
     # check log matches EEG markers
     n_offline_events = 25
     if not len(trials)-n_offline_events==len(e.prepro.annotations):
-        print('***WARNING***\n Trial log contains {0} online trials, but .vmrk contains {1} markers.'.format(len(trials)-n_offline_events,len(e.prepro.annotations)))
-        print('Missing {0} hardware triggers from .vmrk'.format(len(trials)-n_offline_events-len(e.prepro.annotations)))
-        print('Skipping {0}'.format(pID))
+        print_and_log('***WARNING***\n Trial log contains {0} online trials, but .vmrk contains {1} markers.'.format(len(trials)-n_offline_events,len(e.prepro.annotations)))
+        print_and_log('Missing {0} hardware triggers from .vmrk'.format(len(trials)-n_offline_events-len(e.prepro.annotations)))
+        print_and_log('Skipping {0}'.format(pID))
         continue
     # if there are missing markers, we will have to use timings from the log file.
     #TODO separate script to write compatible events files for the various ways the triggers could be f%$*ed 
+
+    e.prepro.set_eeg_reference() # ref to average
+    e.prepro.filter(l_freq=.1,h_freq=None)
 
     # load condition key for language localiser & give a numeric ID to each condition
     langloc_stim = pd.read_table('langloc_key.txt', sep='|',usecols=['Condition','Stim'])
@@ -82,21 +84,23 @@ for p in participants:
     
     # epoch the data, selecting only lang localiser epochs
     # lang_eventID = {key: value for key, value in ev_dict.items() if value >30} # get dict of localiser events
-    e.sent_epochs = mne.Epochs(e.prepro, events,LLcond_to_value, tmin = -.2, tmax= 3)
+    e.sent_epochs = mne.Epochs(e.prepro, events,LLcond_to_value, tmin = -.2, tmax= 4)
     e.sent_erps = {cond: e.sent_epochs[cond].average() for cond in LLcond_to_value.keys()}
-    mne.viz.plot_evoked_topo(list(e.sent_erps.values())) 
+    #mne.viz.plot_evoked_topo(list(e.sent_erps.values())) 
 
     e.sent_av = e.sent_epochs.average()
-    e.sent_av.plot(exclude=[],spatial_colors=True)
+    #e.sent_av.plot(exclude=[],spatial_colors=True)
 
     for c in LLcond_to_value.keys():
         group_sent_erps[c].append(e.sent_erps[c])
+
+#%%
 ci=0
 gav_sent_erps={}
 for c in LLcond_to_value.keys():
-    gav_sent_erps[c] = mne.grand_average(group_sent_erps[c])
+    gav_sent_erps[c] = (mne.grand_average(group_sent_erps[c]).apply_baseline((1.8,2)))
     ci+=1
-mne.viz.plot_compare_evokeds([gav_sent_erps.values()])
+mne.viz.plot_compare_evokeds(gav_sent_erps)
 # TODO fix gav plotting, see https://github.com/mne-tools/mne-python/issues/3393
     # add word onset events or EOG with https://mne.tools/stable/generated/mne.io.Raw.html#mne.io.Raw.add_events
 # %%

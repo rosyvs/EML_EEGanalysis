@@ -14,24 +14,24 @@ participants = range(71,72) # recall that range is exclusive in Python - it will
 
 for p in participants:
     pID= fnroot + '{:03d}'.format(p)  
-    print("\n\n\n~~~~~pID: {0}~~~~~".format(pID))
+    print_and_log("\n\n\n~~~~~pID: {0}~~~~~".format(pID))
     prepro_exists = False
     # check for existing preprocessed data first
     if os.path.isfile(os.path.normpath(outdir + '/' + pID + '_p.fif')):
-        print("\n\n\n{0}: Existing preprocessed file found in {1}".format(pID,os.path.normpath(outdir + '/' + pID + '_p.fif')))
+        print_and_log("\n\n\n{0}: Existing preprocessed file found in {1}".format(pID,os.path.normpath(outdir + '/' + pID + '_p.fif')))
         prepro_exists = True 
         if reprepro:
-            print("{0}: Will overwrite existing preprocessed file ...".format(pID))
+            print_and_log("{0}: Will overwrite existing preprocessed file ...".format(pID))
    
     if reprepro or not prepro_exists: 
-        print("\n\n\n{0}: Preprocessing pipeline started...".format(pID))
+        print_and_log("\n\n\n{0}: Preprocessing pipeline started...".format(pID))
         pIDpath = os.path.normpath(datadir + "/" + pID + "/EEG" )
-        print("Searching folder {0}".format(pIDpath))
+        print_and_log("Searching folder {0}".format(pIDpath))
         vhdrList = glob.glob(pIDpath + "/LA" +  "*.vhdr") # filenames starting 'LA' for SD card recording
         if not(vhdrList):
-            print('No EEG header file found!')
+            print_and_log('No EEG header file found!')
         else:
-            print('Will process the following EEG file(s): {0}'.format(vhdrList))
+            print_and_log('Will process the following EEG file(s): {0}'.format(vhdrList))
 
         for f in vhdrList:
             # preprocessing
@@ -70,7 +70,7 @@ for p in participants:
                 f4.savefig(os.path.join(outdir, pID +"-preprocessedPSD.png"))
                 # plt.close('all')
     else:
-        print("{0}: Skipping preprocessing pipeline.".format(pID))
+        print_and_log("{0}: Skipping preprocessing pipeline.".format(pID))
 
 # TODO
     # access robust detrending and other external fn with https://mne.tools/stable/generated/mne.io.Raw.html#mne.io.Raw.apply_function

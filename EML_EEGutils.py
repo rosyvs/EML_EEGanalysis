@@ -96,3 +96,9 @@ def chn_name_mapping(ch_name):
 
     return ch_name
 
+def print_and_log(str,logfile='EMLEEG_pylog.txt'):
+    with open(logfile, 'a') as o:
+        o.write(str)
+        o.write("\n")
+    print(str)
+
