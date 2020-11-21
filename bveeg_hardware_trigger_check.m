@@ -16,7 +16,7 @@ clear all; close all
 
 datapath = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EyeMindLink\Data';
 
-sublist = [47:50];
+sublist = [56];
 
 for s = 1:length(sublist)
     pID = ['EML1_',sprintf('%03d',sublist(s))];
@@ -40,8 +40,10 @@ for s = 1:length(sublist)
     eeg_start_pc2abs = datetime(eeg_start, 'Format','yyyy-MM-dd HH:mm:ss.SSSSSS');
     
     % read in trigger file - as streamed to BV recorder
-    eeg_hardtrig =  readtable(fullfile(datapath, pID, 'EEG', [pID, '.vmrk']),'filetype','text','HeaderLines',11); % TODO verify that it is always 11 lines
-    eeg_hardtrig = eeg_hardtrig(contains(eeg_hardtrig.Var2,"M  1"),:);
+    eeg_hardtrig =  readtable(fullfile(datapath, pID, 'EEG', [pID, '.vmrk']),'filetype','text','HeaderLines',11,...
+    'ReadVariableNames',false,'Delimiter','comma');
+eeg_hardtrig.Properties.VariableNames = {'number','comment','sample','size','channel','date'};
+    eeg_hardtrig = eeg_hardtrig(contains(eeg_hardtrig.comment,"M  1"),:);
     
     % ____from SD card____
      % get eeg data start time in absolute time, taken from PC2 clock
@@ -52,8 +54,10 @@ temp = fileread(fullfile(datapath, pID, 'EEG', SDfilename.name));
     eegSD_start_pc2abs = datetime(eegSD_start, 'Format','yyyy-MM-dd HH:mm:ss.SSSSSS');
     
     % read in trigger file - as recorded onboard the LiveAmp SD card
-    eegSD_hardtrig =  readtable(fullfile(datapath, pID, 'EEG', SDfilename.name),'filetype','text','HeaderLines',11); % TODO verify that it is always 11 lines
-    eegSD_hardtrig = eegSD_hardtrig(contains(eegSD_hardtrig.Var2,"M  1"),:);
+    eegSD_hardtrig =  readtable(fullfile(datapath, pID, 'EEG', SDfilename.name),'filetype','text','HeaderLines',11,...
+    'ReadVariableNames',false,'Delimiter','comma');
+eegSD_hardtrig.Properties.VariableNames = {'number','comment','sample','size','channel','date'};
+    eegSD_hardtrig = eegSD_hardtrig(contains(eegSD_hardtrig.comment,"M  1"),:);
     
 
     
@@ -182,11 +186,11 @@ temp = fileread(fullfile(datapath, pID, 'EEG', SDfilename.name));
     eegSD_start_pc1abs.Format=('yyyy-MM-dd HH:mm:ss.SSSSSS');
     
     %% compute diffs between the logged events and hardware triggers from the BV recordign
-    eeg_hardtrig.PC1datetime_lslest = milliseconds(eeg_hardtrig.Var3) +  eeg_start_pc1abs; % this estimated via LSL
-        eeg_hardtrig.PC2datetime = milliseconds(eeg_hardtrig.Var3) +  eeg_start_pc2abs; % this is objective from the recording
+    eeg_hardtrig.PC1datetime_lslest = milliseconds(eeg_hardtrig.sample) +  eeg_start_pc1abs; % this estimated via LSL
+        eeg_hardtrig.PC2datetime = milliseconds(eeg_hardtrig.sample) +  eeg_start_pc2abs; % this is objective from the recording
 
 %     eeg_hardtrig.diffWRTlog = eeg_hardtrig.PC1datetime -logtrig.datetime([1:length(eeg_hardtrig.PC1datetime)]);
-    eeg_hardtrig.diff_since_last = [0; diff(eeg_hardtrig.Var3)];
+    eeg_hardtrig.diff_since_last = [0; diff(eeg_hardtrig.sample)];
     logtrig.diff_since_last = [0; milliseconds(diff(logtrig.datetime))];
     
     %     % find differences btween subsequent triggers and use this signature to
@@ -227,11 +231,11 @@ temp = fileread(fullfile(datapath, pID, 'EEG', SDfilename.name));
     eeg_hardtrig.hardware_lag_log = seconds(eeg_hardtrig.PC2datetime-eeg_hardtrig.PC1datetime);
     
      %% compute diffs between the logged events and hardware triggers on the SD card recording
-    eegSD_hardtrig.PC1datetime_lslest = milliseconds(eegSD_hardtrig.Var3) +  eegSD_start_pc1abs; % this estimated via LSL
-        eegSD_hardtrig.PC2datetime = milliseconds(eegSD_hardtrig.Var3) +  eegSD_start_pc2abs; % this is objective from the recording
+    eegSD_hardtrig.PC1datetime_lslest = milliseconds(eegSD_hardtrig.sample) +  eegSD_start_pc1abs; % this estimated via LSL
+        eegSD_hardtrig.PC2datetime = milliseconds(eegSD_hardtrig.sample) +  eegSD_start_pc2abs; % this is objective from the recording
 
 %     eegSD_hardtrig.diffWRTlog = eegSD_hardtrig.PC1datetime -logtrig.datetime([1:length(eegSD_hardtrig.PC1datetime)]);
-    eegSD_hardtrig.diff_since_last = [0; diff(eegSD_hardtrig.Var3)];
+    eegSD_hardtrig.diff_since_last = [0; diff(eegSD_hardtrig.sample)];
     logtrig.diff_since_last = [0; milliseconds(diff(logtrig.datetime))];
     
     %     % find differences btween subsequent triggers and use this signature to
