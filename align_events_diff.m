@@ -38,9 +38,10 @@ end
 diffx = diff(x);
 diffy = diff(y);
 
-% for each element in diffx find its closest in diffy
+% for each element in diffx find its distance to diffy
 for i=1:length(diffx)
-    [m,j]=min(abs(diffx(i)-diffy));
+%             diffmatrix(:,i) = diffx(i)-diffy;
+[m,j]=min(abs(diffx(i)-diffy));
     diffmatchings(i,1) = i;
     diffmatchings(i,2) = j;
     resid(i) = diffx(i)-diffy(j); % remaining unnacounted time once diff intervals are matched
@@ -48,8 +49,8 @@ end
 % get offset (in indices) between diffx and matching in diffy for all i in diffx
 all_offsets = diffmatchings(:,2)-diffmatchings(:,1);
 
-% what is median qualifying offset?
-offset=median(all_offsets(abs(resid)<=tol));
+% what is modal qualifying offset?
+offset=mode(all_offsets(abs(resid)<=tol));
 
 % realign events based on estimated offset
     x_al = x;
@@ -70,7 +71,7 @@ end
 
 % estimate lag based on aligned events
 all_lags = y_al-x_al;
-lag_candidate=all_lags(find(abs(resid)<=tol)); % + 1 because diff vector is 1 shorter than orig
+lag_candidate=all_lags(find(abs(resid)<=tol)+abs(offset)); % + 1 because diff vector is 1 shorter than orig
 lag_candidate_r = tol*round(lag_candidate/tol); % round to nearest tol 
 lag_r=mode(lag_candidate_r); % find modal rounded value
 % get more precise estimate by averaging over all lags within tol of rounded value

@@ -18,13 +18,13 @@ for p in participants:
     prepro_exists = False
     # check for existing preprocessed data first
     if os.path.isfile(os.path.normpath(outdir + '/' + pID + '_p.fif')):
-        print_and_log("\n\n\n{0}: Existing preprocessed file found in {1}".format(pID,os.path.normpath(outdir + '/' + pID + '_p.fif')))
+        print_and_log("\n{0}: Existing preprocessed file found in {1}".format(pID,os.path.normpath(outdir + '/' + pID + '_p.fif')))
         prepro_exists = True 
         if reprepro:
             print_and_log("{0}: Will overwrite existing preprocessed file ...".format(pID))
    
     if reprepro or not prepro_exists: 
-        print_and_log("\n\n\n{0}: Preprocessing pipeline started...".format(pID))
+        print_and_log("\n{0}: Preprocessing pipeline started...".format(pID))
         pIDpath = os.path.normpath(datadir + "/" + pID + "/EEG" )
         print_and_log("Searching folder {0}".format(pIDpath))
         vhdrList = glob.glob(pIDpath + "/LA" +  "*.vhdr") # filenames starting 'LA' for SD card recording

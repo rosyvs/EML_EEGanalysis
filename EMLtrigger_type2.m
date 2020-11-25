@@ -42,8 +42,8 @@ for s = 1:length(sublist)
     % vmrk sample number by the dropped samples. This will pose an issue
     % for aligning to the trigger log.
     dropped = vmrk(contains(vmrk.comment,"LostSamples"),:);
-            eeg_hardtrig.sample_corrected = eeg_hardtrig.sample; % by defaul corrected = orig
-
+    eeg_hardtrig.sample_corrected = eeg_hardtrig.sample; % by defaul corrected = orig
+    
     if ~isempty(dropped)
         bob = regexp(dropped.comment,'LostSamples: (\d+)','once','tokens');
         dropped.n_dropped = str2double([bob{:}])';
@@ -93,7 +93,7 @@ for s = 1:length(sublist)
     on_ix = ~contains(logtrig.MSG,'Y_');
     logtrig = logtrig(on_ix,:);
     
-        %% Remove events too close for reliable trigger resolution (<10ms) - take the
+    %% Remove events too close for reliable trigger resolution (<10ms) - take the
     % first of the two. Of couse the first one is given a diff of 0 so we
     % mustn't discard that
     logtrig.diff_since_last = [0; milliseconds(diff(logtrig.datetime))];
@@ -104,14 +104,15 @@ for s = 1:length(sublist)
     % store aligned events
     logtrig.eeg_sample = NaN(height(logtrig),1);
     logtrig.eeg_sample(y_keep) =  eeg_hardtrig.sample(x_keep);
-    
+    logtrig.EEG_lag_log=NaN(height(logtrig),1);
+    logtrig.EEG_lag_log(y_keep) = seconds(eeg_hardtrig.PC2datetime(x_keep)-logtrig.datetime(y_keep));
     eeg_hardtrig.PC1datetime = NaT(height(eeg_hardtrig),1);
     eeg_hardtrig.PC1datetime(x_keep) = logtrig.datetime(y_keep);% get time from log
     eeg_hardtrig.val =NaN(height(eeg_hardtrig),1);
     eeg_hardtrig.val(x_keep) = logtrig.VAL(y_keep);
     eeg_hardtrig.eventLabel =cell(height(eeg_hardtrig),1);
     eeg_hardtrig.eventLabel(x_keep) = logtrig.MSG(y_keep);
-    eeg_hardtrig.hardware_lag_log = seconds(eeg_hardtrig.PC2datetime-eeg_hardtrig.PC1datetime);
+    eeg_hardtrig.EEG_lag_log = seconds(eeg_hardtrig.PC2datetime-eeg_hardtrig.PC1datetime);
     
     % estimate eeg_start_pc1abs
     eeg_start_pc1abs = mean(logtrig.datetime(y_keep)- milliseconds(eeg_hardtrig.sample(x_keep)));
@@ -122,14 +123,15 @@ for s = 1:length(sublist)
     % store aligned events
     logtrig.eegSD_sample = NaN(height(logtrig),1);
     logtrig.eegSD_sample(y_keep) =  eegSD_hardtrig.sample(x_keep);
-    
+    logtrig.SDEEG_lag_log=NaN(height(logtrig),1);
+    logtrig.SDEEG_lag_log(y_keepSD) = seconds(eegSD_hardtrig.PC2datetime(x_keepSD)-logtrig.datetime(y_keepSD));
     eegSD_hardtrig.PC1datetime = NaT(height(eegSD_hardtrig),1);
     eegSD_hardtrig.PC1datetime(x_keep) = logtrig.datetime(y_keep);    % get time from log
     eegSD_hardtrig.val =NaN(height(eegSD_hardtrig),1);
     eegSD_hardtrig.val(x_keep) = logtrig.VAL(y_keep);
     eegSD_hardtrig.eventLabel =cell(height(eegSD_hardtrig),1);
     eegSD_hardtrig.eventLabel(x_keep) = logtrig.MSG(y_keep);
-    eegSD_hardtrig.hardware_lag_log =  seconds(eegSD_hardtrig.PC2datetime-eegSD_hardtrig.PC1datetime);
+    eegSD_hardtrig.EEG_lag_log =  seconds(eegSD_hardtrig.PC2datetime-eegSD_hardtrig.PC1datetime);
     
     
     % lag between PC2 timestamps (i.e. based on the eeg file start time)
@@ -155,9 +157,9 @@ for s = 1:length(sublist)
     timinfo(s).eeg_start_pc2abs = eeg_start_pc2abs;
     timinfo(s).eeg_start_discrepancy = seconds(eeg_start_pc2abs - eeg_start_pc1abs);
     timinfo(s).SD_lag_BV_mean = nanmean(logtrig.SD_lag_BV);
-    timinfo(s).SD_lag_BV_jitter = range(logtrig.SD_lag_BV); % there will be a lot of jitter if there are missed samples in the streamed file!
-    timinfo(s).hardware_lag_log =nanmean(eeg_hardtrig.hardware_lag_log );
-    timinfo(s).hardware_lag_log_jitter =range(eeg_hardtrig.hardware_lag_log );
+    timinfo(s).SD_lag_BV_range = range(logtrig.SD_lag_BV); % there will be a lot of jitter if there are missed samples in the streamed file!
+    timinfo(s).EEG_lag_log =nanmean(eeg_hardtrig.EEG_lag_log );
+    timinfo(s).EEG_lag_log_range =range(eeg_hardtrig.EEG_lag_log );
     
     disp(timinfo(s))
 end

@@ -11,11 +11,10 @@ Sentence types: words, jabberwocky words, sentences, jabberwocky sentences
 100ms per word || 2 sec between sentences || 10 sec between blocks
 """
 
-
 rawdir = os.path.normpath('C:/Users/roso8920/Dropbox (Emotive Computing)/EyeMindLink/Data')
 preprodir = os.path.normpath('../../Data/EEG_processed/')# save directory for processed EEG data
 fnroot = 'EML1_'
-participants = range(30,72) # recall that range is exclusive in Python 
+participants = range(55,72) # recall that range is exclusive in Python 
 
 group_sent_erps = defaultdict(list)
 #%%
@@ -100,7 +99,7 @@ gav_sent_erps={}
 for c in LLcond_to_value.keys():
     gav_sent_erps[c] = (mne.grand_average(group_sent_erps[c]).apply_baseline((1.8,2)))
     ci+=1
-mne.viz.plot_compare_evokeds(gav_sent_erps)
-# TODO fix gav plotting, see https://github.com/mne-tools/mne-python/issues/3393
-    # add word onset events or EOG with https://mne.tools/stable/generated/mne.io.Raw.html#mne.io.Raw.add_events
+mne.viz.plot_compare_evokeds(gav_sent_erps, xlim=(1.8,3))
+#TODO
+# add word onset events or EOG with https://mne.tools/stable/generated/mne.io.Raw.html#mne.io.Raw.add_events
 # %%
