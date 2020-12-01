@@ -10,7 +10,7 @@ plotTF = True
 datadir = os.path.normpath('C:/Users/roso8920/Dropbox (Emotive Computing)/EyeMindLink/Data')
 outdir = os.path.normpath('../../Data/EEG_processed/')# save directory for processed EEG data
 fnroot = 'EML1_'
-participants = range(71,72) # recall that range is exclusive in Python - it will do first : end-1
+participants = range(47,50) # recall that range is exclusive in Python - it will do first : end-1
 
 for p in participants:
     pID= fnroot + '{:03d}'.format(p)  
@@ -29,7 +29,12 @@ for p in participants:
         print_and_log("Searching folder {0}".format(pIDpath))
         vhdrList = glob.glob(pIDpath + "/LA" +  "*.vhdr") # filenames starting 'LA' for SD card recording
         if not(vhdrList):
-            print_and_log('No EEG header file found!')
+            print_and_log('Attempted to find SD card recording (LA*.vhdr). No header file found!')
+            print_and_log('Will look for a streamed recording instead (EML1_*.vhdr)')
+            vhdrList = glob.glob(pIDpath + "/EML1" +  "*.vhdr") # filenames starting 'LA' for SD card recording
+            if not(vhdrList):
+                print_and_log('No header file found for either streamed or SD recording!')
+                continue
         else:
             print_and_log('Will process the following EEG file(s): {0}'.format(vhdrList))
 

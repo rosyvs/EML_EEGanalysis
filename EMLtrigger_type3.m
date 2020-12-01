@@ -4,8 +4,8 @@
 % Hardware triggers sent through the liveamp
 % Can deal with the following issues:
 % --Some hardware triggers are missing
-% --Some excess jardware triggers
-% 
+% --Some excess hardware triggers
+%
 % synchronisation:
 % compute timing diff between successive triggers and use timeseries
 % alignment to get a matching from log to hardware triggers
@@ -21,7 +21,7 @@ datapath = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EyeMindLink\Data';
 % sublist = % type 1: one-to-one log to trigger mapping, no hacking necessary
 % sublist = [56 60 63 66 67]; % type 2: extra hardware triggers, all log
 % events present
-sublist = [44:76];
+sublist = [73];
 
 for s = 1:length(sublist)
     pID = ['EML1_',sprintf('%03d',sublist(s))];
@@ -37,28 +37,31 @@ for s = 1:length(sublist)
     %% get the absolute timestamps from the log file on PC1
     % earlier participants (software v3) have different log
     if sublist(s) <27
+        %TODO fix this
         logtrig = readtable(fullfile(datapath,pID,[pID '_Trials.txt']) );
         % combine date and time to a datetime obj
         logtrig.Var1.Format = 'yyyy-MM-dd HH:mm:ss.SSSSSS';
         logtrig.datetime = logtrig.Var1 + logtrig.Var2;
         logtrig.Var1.Format = 'yyyy-MM-dd';
+        logtrig.Properties.VariableNames{6} = 'EVENT';
         logtrig.Properties.VariableNames{7} = 'VAL';
+        logtrig.MSG = join(join(join(cellstr(string(logtrig.datetime)),logtrig.Var3,' '),join(logtrig.Var3,logtrig.Var4,' '),' '),logtrig.Var5,'  ');
     else
         logtrig = readtable(fullfile(datapath,pID,[pID '_Trials.txt']) ,'Delimiter','\t');
+        logtrig.Properties.VariableNames{2} = 'EVENT';
         logtrig.Properties.VariableNames{3} = 'VAL';
-        logtrig.Properties.VariableNames{2} = 'MSG';
         % split the first column again by space delimiter
         cols = split(logtrig.Var1);
         logtrig.datetime =datetime(join( cols(:,1:2),' '));
         logtrig.datetime.Format = 'yyyy-MM-dd HH:mm:ss.SSSSSS';
-        
+        logtrig.Properties.VariableNames{1} = 'MSG';
     end
     
     % identify events during EEG recording
-    on_ix = ~contains(logtrig.MSG,'Y_');
+    on_ix = ~contains(logtrig.EVENT,'Y_');
     logtrig = logtrig(on_ix,:);
     
-    %% Remove events too close for reliable trigger resolution (<5ms) 
+    %% Remove events too close for reliable trigger resolution (<5ms)
     % - take the first of the two. Of couse the first trigger is given a diff of 0 so we
     % mustn't discard that
     logtrig.diff_since_last = [0; milliseconds(diff(logtrig.datetime))];
@@ -122,7 +125,7 @@ for s = 1:length(sublist)
         eegSD_hardtrig = eegSD_hardtrig(contains(string(eegSD_hardtrig.comment),"M  1"),:);
         if isempty(eegSD_hardtrig)
             disp(['No triggers found in SD card .vmrk! Use xdf to recover triggers.'])
-                diary off
+            diary off
             continue
         else
             eegSD_hardtrig.PC2datetime = milliseconds(eegSD_hardtrig.sample) +  eegSD_start_pc2abs; % this is objective from the recording
@@ -144,7 +147,7 @@ for s = 1:length(sublist)
         eeg_hardtrig.val =NaN(height(eeg_hardtrig),1);
         eeg_hardtrig.val(x_keep) = logtrig.VAL(y_keep);
         eeg_hardtrig.eventLabel =cell(height(eeg_hardtrig),1);
-        eeg_hardtrig.eventLabel(x_keep) = logtrig.MSG(y_keep);
+        eeg_hardtrig.eventLabel(x_keep) = logtrig.EVENT(y_keep);
         eeg_hardtrig.EEG_lag_log = seconds(eeg_hardtrig.PC2datetime-eeg_hardtrig.PC1datetime);
         
         % estimate eeg_start_pc1abs
@@ -165,7 +168,7 @@ for s = 1:length(sublist)
     eegSD_hardtrig.val =NaN(height(eegSD_hardtrig),1);
     eegSD_hardtrig.val(x_keepSD) = logtrig.VAL(y_keepSD);
     eegSD_hardtrig.eventLabel =cell(height(eegSD_hardtrig),1);
-    eegSD_hardtrig.eventLabel(x_keepSD) = logtrig.MSG(y_keepSD);
+    eegSD_hardtrig.eventLabel(x_keepSD) = logtrig.EVENT(y_keepSD);
     eegSD_hardtrig.EEG_lag_log =  seconds(eegSD_hardtrig.PC2datetime-eegSD_hardtrig.PC1datetime);
     
     
@@ -191,6 +194,8 @@ for s = 1:length(sublist)
     disp(['    ' num2str(length(y_keepSD)) ' triggers matched to log events'])
     
     %% Deal w missing hardware triggers in streamed file
+    logtrig.eeg_sample_est = logtrig.eeg_sample; % by default est = actual
+    
     if ~isempty(BVfilename)
         
         if length(y_keep) / height(logtrig) <.25
@@ -202,7 +207,6 @@ for s = 1:length(sublist)
             % Use relative timings in log to estimate EEG sample number
             disp(['Attempting to repair ' ...
                 num2str(sum(isnan(logtrig.eeg_sample))) ' missing triggers in streamed recording using log.'])
-            logtrig.eeg_sample_est = logtrig.eeg_sample;
             to_fix = find(isnan(logtrig.eeg_sample));
             good = find(~isnan(logtrig.eeg_sample));
             for i= to_fix'
@@ -216,7 +220,7 @@ for s = 1:length(sublist)
                     logtrig.eeg_sample_est(i) = logtrig.eeg_sample(good(ix))+sum(logtrig.diff_since_last((good(ix)+1):i));
                 end
             end
-                    logtrig.eeg_sample_est(logtrig.eeg_sample_est<0) = NaN; % if the esimated timing is before EEG recording started 
+            logtrig.eeg_sample_est(logtrig.eeg_sample_est<0) = NaN; % if the esimated timing is before EEG recording started
             if sum(isnan(logtrig.eeg_sample_est))>0
                 disp(['    Couldn''t repair all missing streamed triggers. Still missing ' num2str(sum(isnan(logtrig.eeg_sample_est)))])
             else
@@ -225,6 +229,7 @@ for s = 1:length(sublist)
         end
     end
     %% same for SD card
+    logtrig.eegSD_sample_est = logtrig.eegSD_sample;
     if length(y_keepSD) / height(logtrig) <.25
         disp(['***WARNING!!! Too few hardware triggers from SD card matched to logged events'])
         disp('Trigger repair would be unreliable, so was not attempted. Please use .xdf or streamed recording instead.')
@@ -234,7 +239,6 @@ for s = 1:length(sublist)
         % Use relative timings in log to estimate EEG sample number
         disp(['Attempting to repair '  ...
             num2str(sum(isnan(logtrig.eegSD_sample))) ' missing triggers in SD recording using log.'])
-        logtrig.eegSD_sample_est = logtrig.eegSD_sample;
         to_fix = find(isnan(logtrig.eegSD_sample));
         good = find(~isnan(logtrig.eegSD_sample));
         for i= to_fix'
@@ -248,9 +252,9 @@ for s = 1:length(sublist)
                 logtrig.eegSD_sample_est(i) = logtrig.eegSD_sample(good(ix))+sum(logtrig.diff_since_last((good(ix)+1):i));
             end
         end
-        logtrig.eegSD_sample_est(logtrig.eegSD_sample_est<0) = NaN; % if the esimated timing is before EEG recording started 
+        logtrig.eegSD_sample_est(logtrig.eegSD_sample_est<0) = NaN; % if the esimated timing is before EEG recording started
         if sum(isnan(logtrig.eegSD_sample_est))>0
-                disp(['    Couldn''t repair all missing triggers on SD. Still missing ' num2str(sum(isnan(logtrig.eegSD_sample_est)))])
+            disp(['    Couldn''t repair all missing triggers on SD. Still missing ' num2str(sum(isnan(logtrig.eegSD_sample_est)))])
         else
             disp('    Repaired all missing triggers from SD recording.')
         end

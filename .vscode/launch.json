@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "pythonPath": "C:/Users/roso8920/Miniconda3/envs/eml/python.exe"
+            "python": "C:/Users/roso8920/Miniconda3/envs/eml/python.exe"
         }
     ]
 }

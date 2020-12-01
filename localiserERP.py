@@ -3,6 +3,9 @@ from EML_EEGutils import *
 import pandas as pd
 import re
 from collections import defaultdict
+import fnmatch
+import matplotlib.pyplot as plt
+
 """
 EEG analysis for EML: find language localiser ERP
 Stimuli after FEdorenko et al. 2010
@@ -14,9 +17,24 @@ Sentence types: words, jabberwocky words, sentences, jabberwocky sentences
 rawdir = os.path.normpath('C:/Users/roso8920/Dropbox (Emotive Computing)/EyeMindLink/Data')
 preprodir = os.path.normpath('../../Data/EEG_processed/')# save directory for processed EEG data
 fnroot = 'EML1_'
-participants = range(55,72) # recall that range is exclusive in Python 
-
+participants = range(47,75) # recall that range is exclusive in Python 
 group_sent_erps = defaultdict(list)
+# load condition key for language localiser & give a numeric ID to each condition
+langloc_stim = pd.read_table('langloc_key.txt', sep='|',usecols=['Condition','Stim'])
+cond_str = np.unique(langloc_stim.Condition)
+LLcond_to_value = dict(zip(cond_str,[31,32,33,34]))
+LLvalue_to_cond = {v: k for k, v in LLcond_to_value.items()} 
+langloc_stim["value"] = langloc_stim.Condition.apply(lambda x: LLcond_to_value[x])
+
+# I want to give each lang loc condition a different value
+# reassign event value based on searching for event string in langloc_stim
+def recode(series):
+    trial = series.EVENT
+    orig_value = series.VAL
+    for sentence, new_value in langloc_stim.loc[:,['Stim','value']].itertuples(index=False):
+        if re.search(sentence,trial):
+            return new_value
+    return orig_value
 #%%
 for p in participants:
     pID= fnroot + '{:03d}'.format(p)  
@@ -24,10 +42,12 @@ for p in participants:
     prepro_exists = False
     # check for existing preprocessed data first
     if os.path.isfile(os.path.normpath(preprodir + '/' + pID + '_p.fif')):
-        print_and_log("\n\n\n{0}: Existing preprocessed file found in {1}".format(pID,os.path.normpath(preprodir + '/' + pID + '_p.fif')))
+        print_and_log("\n\n\n{0}: Existing preprocessed file found in {1}"\
+            .format(pID,os.path.normpath(preprodir + '/' + pID + '_p.fif')))
         prepro_exists = True 
     else:
-        print_and_log("\n\n\n{0}: Skipping analysis. No preprocessed file found in {1}".format(pID,os.path.normpath(preprodir + '/' + pID + '_p.fif')))
+        print_and_log("\n\n\n{0}: Skipping analysis. No preprocessed file found in {1}"\
+            .format(pID,os.path.normpath(preprodir + '/' + pID + '_p.fif')))
         continue
 
     print_and_log("\n\n\nComputing Language Localiser response for {0}".format(pID))
@@ -36,70 +56,82 @@ for p in participants:
     e.prepro = mne.io.read_raw_fif(fname=os.path.normpath(preprodir + '/' + pID + '_p.fif'),preload=True)
 
     # get events
-    log_file = os.path.normpath(rawdir + "/" + pID + "/" + pID + '_Trials.txt')
-    log_cols = ['date','time','mode','msg1','msg2','event','value']
-    trials = pd.read_csv(log_file, sep='\t',skiprows=1, header=None,names=['col1','event','value'])
-    trials[['date','time','mode','msg1','msg2']]=trials.col1.str.split(expand=True)
-    trials=trials.drop(['col1','mode','msg1','msg2'],axis=1)
+    event_file = os.path.normpath(rawdir + '/' + pID + '/EEG/events.csv')
+    trials = pd.read_csv(event_file)
 
-    # check log matches EEG markers
-    n_offline_events = 25
-    if not len(trials)-n_offline_events==len(e.prepro.annotations):
-        print_and_log('***WARNING***\n Trial log contains {0} online trials, but .vmrk contains {1} markers.'.format(len(trials)-n_offline_events,len(e.prepro.annotations)))
-        print_and_log('Missing {0} hardware triggers from .vmrk'.format(len(trials)-n_offline_events-len(e.prepro.annotations)))
-        print_and_log('Skipping {0}'.format(pID))
+    # detect whether preprocessed EEG came from streamed or SD card and use the right event samples
+    if fnmatch.fnmatch(e.prepro.info['description'],'*LA*.vhdr'): # this was preferred option during prepro
+        use_col = 'eegSD_sample_est'
+        print_and_log('using EEG data and triggers from SD card')
+    elif fnmatch.fnmatch(e.prepro.info['description'],'*EML1_???.vhdr'): 
+        use_col = 'eeg_sample_est'
+        print_and_log('using EEG data and triggers from streamed recording')
+    else:
+        print_and_log('***WARNING*** \nNo raw EEG filename recorded in preprocessed file!\nCan''t detect which triggers to use. Skipping {0}'.format(pID))
         continue
-    # if there are missing markers, we will have to use timings from the log file.
-    #TODO separate script to write compatible events files for the various ways the triggers could be f%$*ed 
-
+    
     e.prepro.set_eeg_reference() # ref to average
     e.prepro.filter(l_freq=.1,h_freq=None)
 
-    # load condition key for language localiser & give a numeric ID to each condition
-    langloc_stim = pd.read_table('langloc_key.txt', sep='|',usecols=['Condition','Stim'])
-    LLcond_to_value = dict(zip(np.unique(langloc_stim.Condition),[31,32,33,34]))
-    LLvalue_to_cond = {v: k for k, v in LLcond_to_value.items()} 
-    langloc_stim["value"] = langloc_stim.Condition.apply(lambda x: LLcond_to_value[x])
 
-    ev_df = trials.iloc[0:-n_offline_events].loc[:,['event','value']] # select online events
-    
-    # reassign event value based on searching for event string in langloc_stim
-    def recode(series):
-        trial = series.event
-        orig_value = series.value
-        for sentence, new_value in langloc_stim.loc[:,['Stim','value']].itertuples(index=False):
-            if re.search(sentence,trial):
-                return new_value
-        return orig_value
-    ev_df['value'] = ev_df.loc[:,['event','value']].apply(recode, axis=1)  
+    trials['VAL'] = trials.loc[:,['EVENT','VAL']].apply(recode, axis=1)  
     # replace long event description (full sentence) with short condition ID
-    ev_df=ev_df.assign(event=ev_df.value.map(LLvalue_to_cond).fillna(ev_df.event))
+    trials=trials.assign(event=trials.VAL.map(LLvalue_to_cond).fillna(trials.MSG))
 
-    ev_dict = dict(zip(ev_df.event, ev_df.value)) # make dict of event desc to values
+    events = trials.loc[:,[use_col,'VAL']]
+    events = events.dropna(axis=0)# remove rows with no corresponding EEG sample
+    ev_dict = dict(zip(trials.loc[~pd.isna(trials[use_col]),'EVENT'], \
+        trials.loc[~pd.isna(trials[use_col]),'VAL'])) # make dict of event desc to values
 
-    e.prepro.annotations.description = ev_df.loc[:,'event'].to_numpy(dtype=str) # overwrite default uninformative annotations
-    # extract events from annotations
-    events, event_id =  mne.events_from_annotations(e.prepro,ev_dict) # get mne events
+    events.insert(loc=1,column='output',value=0)
+# realign language localiser triggers to start at stimulus, not ISI, by adding 2000 ms to trigger
+    events.loc[events['VAL'].isin(cond_str),use_col] =\
+    2000+events.loc[events['VAL'].isin(cond_str),use_col]
+    events=events.to_numpy().astype(int)                             
     
+    # params for rejecting epochs based on amplitude
+    reject = dict(eeg=150e-6)
+                                                                                                                                                                                
     # epoch the data, selecting only lang localiser epochs
-    # lang_eventID = {key: value for key, value in ev_dict.items() if value >30} # get dict of localiser events
-    e.sent_epochs = mne.Epochs(e.prepro, events,LLcond_to_value, tmin = -.2, tmax= 4)
-    e.sent_erps = {cond: e.sent_epochs[cond].average() for cond in LLcond_to_value.keys()}
+    e.sent_epochs = mne.Epochs(e.prepro, events, LLcond_to_value, tmin = -.2, tmax= 3, on_missing='raise',preload=True)
+epochs.drop_bad()
+
+
+    e.sent_erps = {cond: e.sent_epochs[cond].average(picks='eeg') for cond in LLcond_to_value.keys()}
     #mne.viz.plot_evoked_topo(list(e.sent_erps.values())) 
 
-    e.sent_av = e.sent_epochs.average()
+    cond_counts = [len(e.sent_epochs[cond]) for cond in cond_str]
+    # TODO detect whether any conditions are missing, if so, skip this subject
+    skip_p=False
+    for ci in range(len(cond_counts)):
+        if cond_counts[ci]<10:
+            print_and_log('Only {0} epochs for condition {1}'.format(cond_counts[ci],cond_str[ci]))
+            skip_p = True
+    if not skip_p:
+        for c in LLcond_to_value.keys():
+            group_sent_erps[c].append(e.sent_erps[c])
+        e.sent_av = e.sent_epochs.average()
+    else: 
+        print_and_log('Skipping {0}'.format(pID))
     #e.sent_av.plot(exclude=[],spatial_colors=True)
-
-    for c in LLcond_to_value.keys():
-        group_sent_erps[c].append(e.sent_erps[c])
-
 #%%
 ci=0
 gav_sent_erps={}
-for c in LLcond_to_value.keys():
-    gav_sent_erps[c] = (mne.grand_average(group_sent_erps[c]).apply_baseline((1.8,2)))
+for c in cond_str:
+    # detect nans in data
+    this = group_sent_erps[c]
+    si=0
+    for s in this:
+        data = s.to_data_frame()
+        if data.isnull().values.any():
+            print('Missing {0} values in condition {1}, subject {2}'.format(data.isnull().sum(),c,participants[si]))
+        si=si+1
+
+    gav_sent_erps[c] = (mne.grand_average(group_sent_erps[c], interpolate_bads = False, drop_bads=False).apply_baseline((-0.2,0)))
     ci+=1
-mne.viz.plot_compare_evokeds(gav_sent_erps, xlim=(1.8,3))
-#TODO
-# add word onset events or EOG with https://mne.tools/stable/generated/mne.io.Raw.html#mne.io.Raw.add_events
+fig, ax = plt.subplots()
+gavplot = mne.viz.plot_compare_evokeds(gav_sent_erps,axes = ax)
+ax=plt.gca()
+ax.set_xlim(-0.2, 1.6) 
+
 # %%
