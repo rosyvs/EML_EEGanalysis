@@ -3,8 +3,8 @@ import os
 # rename folders and files for when the experiment software was given the wrong pID
 # best practice is to copy the misnamed folder from dropbox first to your local directory so if you f&$* it up you haven't rekt the data
 
-old_name = 'EML1_0063'
-correct_name =  'EML1_063'
+old_name = 'eml1_070'
+correct_name =  'EML1_070'
 
 paths = (os.path.join(root, filename)
         for root, _, filenames in os.walk(r'C:\Users\roso8920\Dropbox (Emotive Computing)\EML Rosy\Data')

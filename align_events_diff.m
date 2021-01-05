@@ -34,6 +34,8 @@ end
 if size(y,2)>size(y,1)
     y=y';
 end
+assert(length(x)>2,'x must be at least length 2')
+assert(length(y)>2,'y must be at least length 2')
 
 diffx = diff(x);
 diffy = diff(y);

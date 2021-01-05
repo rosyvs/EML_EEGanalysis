@@ -5,7 +5,8 @@ import re
 from collections import defaultdict
 import fnmatch
 import matplotlib.pyplot as plt
-
+from autoreject import get_rejection_threshold  
+#%matplotlib auto
 """
 EEG analysis for EML: find language localiser ERP
 Stimuli after FEdorenko et al. 2010
@@ -22,7 +23,8 @@ group_sent_erps = defaultdict(list)
 # load condition key for language localiser & give a numeric ID to each condition
 langloc_stim = pd.read_table('langloc_key.txt', sep='|',usecols=['Condition','Stim'])
 cond_str = np.unique(langloc_stim.Condition)
-LLcond_to_value = dict(zip(cond_str,[31,32,33,34]))
+cond_val = [31,32,33,34]
+LLcond_to_value = dict(zip(cond_str,cond_val))
 LLvalue_to_cond = {v: k for k, v in LLcond_to_value.items()} 
 langloc_stim["value"] = langloc_stim.Condition.apply(lambda x: LLcond_to_value[x])
 
@@ -84,25 +86,44 @@ for p in participants:
         trials.loc[~pd.isna(trials[use_col]),'VAL'])) # make dict of event desc to values
 
     events.insert(loc=1,column='output',value=0)
-# realign language localiser triggers to start at stimulus, not ISI, by adding 2000 ms to trigger
-    events.loc[events['VAL'].isin(cond_str),use_col] =\
-    2000+events.loc[events['VAL'].isin(cond_str),use_col]
-    events=events.to_numpy().astype(int)                             
-    
-    # params for rejecting epochs based on amplitude
-    reject = dict(eeg=150e-6)
-                                                                                                                                                                                
+    # realign language localiser triggers to start at stimulus, not ISI, by adding 2000 ms to trigger
+    events.loc[events['VAL'].isin(cond_val),use_col] =2000+events.loc[events['VAL'].isin(cond_val),use_col]
+    events = events.loc[events[use_col]<e.prepro.n_times,:]    # remove any events after end of eeg. 
+
+    # check if any lang loc effects are missing, if so, skip.
+    cond_counts = [sum(events['VAL']==v) for v in cond_val]           
+    if any(c<1 for c in cond_counts):
+        missing_conds = cond_str[[i for i,c in enumerate(cond_counts) if c<1]]
+        print_and_log('No epochs for condition(s) {0}'.format(missing_conds)) 
+        print_and_log('Skipping {0}'.format(pID))
+        continue
+    events=events.to_numpy().astype(int)                 
+
+    #TODO use eyetracker blinks and saccades to remove EOG artifacts 
+    # see https://github.com/olafdimigen/OPTICAT/blob/master/opticat_script.m
+
+    #TODO reject epochs
+    reject = dict(eeg=300e-6) # hard peak to peak threshold for mne 
+    # # use Autoreject to automatically detect rejection threshold
+    # epochs = mne.Epochs(e.prepro, events, LLcond_to_value, tmin = -.2, tmax= 1.6, on_missing='warn',preload=True)
+    # reject = get_rejection_threshold(epochs, decim=1)   # use autoreject    
+    epochs2 = mne.Epochs(e.prepro, events, LLcond_to_value, tmin = -.2, tmax= 1.6, on_missing='warn',preload=True, reject=reject)                                                                                                                                                                 
+    epochs2.plot(event_id=LLcond_to_value)
+    # epochs2.drop_bad()
+    # epochs2.plot_image()
+    # epochs.average().plot()
+    # epochs2.average().plot()
     # epoch the data, selecting only lang localiser epochs
-    e.sent_epochs = mne.Epochs(e.prepro, events, LLcond_to_value, tmin = -.2, tmax= 3, on_missing='raise',preload=True)
-epochs.drop_bad()
+    e.sent_epochs = epochs2
 
 
+    # Compute evoked response by averaging epochs
     e.sent_erps = {cond: e.sent_epochs[cond].average(picks='eeg') for cond in LLcond_to_value.keys()}
     #mne.viz.plot_evoked_topo(list(e.sent_erps.values())) 
 
+    # detect whether any conditionshave insufficient trials, if so, skip this subject
     cond_counts = [len(e.sent_epochs[cond]) for cond in cond_str]
-    # TODO detect whether any conditions are missing, if so, skip this subject
-    skip_p=False
+    skip_p=False # indicator for whether we will skip this participant
     for ci in range(len(cond_counts)):
         if cond_counts[ci]<10:
             print_and_log('Only {0} epochs for condition {1}'.format(cond_counts[ci],cond_str[ci]))
@@ -124,9 +145,9 @@ for c in cond_str:
     for s in this:
         data = s.to_data_frame()
         if data.isnull().values.any():
-            print('Missing {0} values in condition {1}, subject {2}'.format(data.isnull().sum(),c,participants[si]))
+            print_and_log('Missing {0} values in condition {1}, subject {2}'.format(data.isnull().sum(),c,participants[si]))
         si=si+1
-
+    print_and_log('{0} group average based on {1} participants'.format(c,len(group_sent_erps[c])))
     gav_sent_erps[c] = (mne.grand_average(group_sent_erps[c], interpolate_bads = False, drop_bads=False).apply_baseline((-0.2,0)))
     ci+=1
 fig, ax = plt.subplots()

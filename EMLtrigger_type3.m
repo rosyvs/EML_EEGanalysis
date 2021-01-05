@@ -21,7 +21,7 @@ datapath = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EyeMindLink\Data';
 % sublist = % type 1: one-to-one log to trigger mapping, no hacking necessary
 % sublist = [56 60 63 66 67]; % type 2: extra hardware triggers, all log
 % events present
-sublist = [73];
+sublist = [78];
 
 for s = 1:length(sublist)
     pID = ['EML1_',sprintf('%03d',sublist(s))];
