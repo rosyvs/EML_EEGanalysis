@@ -18,7 +18,7 @@ Sentence types: words, jabberwocky words, sentences, jabberwocky sentences
 rawdir = os.path.normpath('C:/Users/roso8920/Dropbox (Emotive Computing)/EyeMindLink/Data')
 preprodir = os.path.normpath('../../Data/EEG_processed/')# save directory for processed EEG data
 fnroot = 'EML1_'
-participants = range(47,75) # recall that range is exclusive in Python 
+participants = range(47,86) # recall that range is exclusive in Python 
 group_sent_erps = defaultdict(list)
 # load condition key for language localiser & give a numeric ID to each condition
 langloc_stim = pd.read_table('langloc_key.txt', sep='|',usecols=['Condition','Stim'])

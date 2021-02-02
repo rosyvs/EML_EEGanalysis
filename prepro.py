@@ -6,11 +6,11 @@ EEG analysis for EML: preprocessing pipeline
 """
 
 reprepro = True # re-do preprocessing. If False, checks outdir and skips participants with a prepro'd file
-plotTF = True
+plotTF = False
 datadir = os.path.normpath('C:/Users/roso8920/Dropbox (Emotive Computing)/EyeMindLink/Data')
 outdir = os.path.normpath('../../Data/EEG_processed/')# save directory for processed EEG data
 fnroot = 'EML1_'
-participants = range(47,50) # recall that range is exclusive in Python - it will do first : end-1
+participants = range(21,86) # recall that range is exclusive in Python - it will do first : end-1
 
 for p in participants:
     pID= fnroot + '{:03d}'.format(p)  
@@ -54,6 +54,8 @@ for p in participants:
 
             # write preprocessed data to file
             e.prepro.save(fname=os.path.normpath(outdir + '/' + pID + '_p.fif'),overwrite=True)
+            metadata_file = open(os.path.join(outdir, pID + '-info.txt'),'w')
+            metadata_file.write(e.prepro.info['description'])
 
             if plotTF:
                 # plt.ion()
