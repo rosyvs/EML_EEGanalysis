@@ -19,12 +19,15 @@ clear all; close all
 eeglab nogui % sets path defaults
 addpath(genpath('C:\Users\roso8920\Documents\MATLAB\eeglab_current\eeglab2021.0\plugins\eye-eeg0.85'))
 
-sublist = [33:90];
+sublist = [70];
 dir_raw = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EyeMindLink\Data\';
 dir_pre = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EML Rosy\Data\EEG_processed';
 mkdir( dir_pre, 'opticat_cleaned')
 for s = 1:length(sublist)
-    pID = ['EML1_',sprintf('%03d',sublist(s))];    
+    pID = ['EML1_',sprintf('%03d',sublist(s))];
+    
+    pID = ['EML1_',sprintf('%03d',sublist(s))];
+    
     
     % use Fieldtrip to load fif data from MNE (TODO can EEGlab read fif
     % directly??)
@@ -254,9 +257,11 @@ for s = 1:length(sublist)
     badcomps = EEG.reject.gcompreject;
     % choose max 2 with highest variance
     [vr,worst2comps] = maxk(varratiotable(:,3),2);
-    badcomps = intersect(find(badcomps), worst2comps);
+    badcomps = badcomps)
     
-    EEG      = pop_subcomp(EEG,badcomps); % remove them    
+    EEG      = pop_subcomp(EEG,find(badcomps)); % remove them
+    %% TODO limit number of removed components
+    
     
     %%  Plot SRP + FRP before and after artefact removal
     % Compute saccade-locked ERPs from clean data, then baseline (ugh mixed units - seconds then milliseconds)
@@ -275,7 +280,7 @@ for s = 1:length(sublist)
     plot(epoch_sac.times, mean(epoch_sac.data(eeg_channels,:,:),3))
     ylabel('Saccade-related ERP')
     xlabel('Time after saccade [ms]')
-    title(['clean data - ' num2str(length(badcomps)) ' removed components'])
+    title(['clean data - ' num2str(sum(badcomps)) ' removed components'])
     legend({EEG.chanlocs.labels})
     set(h1,'Position',[190 340 1200 400])
     
@@ -289,7 +294,7 @@ for s = 1:length(sublist)
     plot(epoch_fix.times, mean(epoch_fix.data(eeg_channels,:,:),3))
     ylabel('Fixation-related ERP')
     xlabel('Time after fixation [ms]')
-    title(['clean data - ' num2str(length(badcomps)) ' removed components'])
+    title(['clean data - ' num2str(sum(badcomps)) ' removed components'])
     legend({EEG.chanlocs.labels})
     set(h2,'Position',[190 340 1200 400])
     

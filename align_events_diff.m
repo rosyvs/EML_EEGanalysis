@@ -71,9 +71,9 @@ if length(y_al)>length(x_al)
     x_al=[x_al; NaN(length(y_al)-length(x_al),1)];
 end
 
-% estimate lag based on aligned events
+% estimate timestamp lag based on aligned events
 all_lags = y_al-x_al;
-lag_candidate=all_lags(find(abs(resid)<=tol)+abs(offset)); % + 1 because diff vector is 1 shorter than orig
+lag_candidate=all_lags((find(abs(resid)<=tol)+abs(offset))<=length(all_lags)); %restrict to locations in x with close-enough matchings
 lag_candidate_r = tol*round(lag_candidate/tol); % round to nearest tol 
 lag_r=mode(lag_candidate_r); % find modal rounded value
 % get more precise estimate by averaging over all lags within tol of rounded value
