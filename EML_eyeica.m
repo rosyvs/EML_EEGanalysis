@@ -18,12 +18,14 @@
 clear all; close all
 eeglab nogui % sets path defaults
 addpath(genpath('C:\Users\roso8920\Documents\MATLAB\eeglab_current\eeglab2021.0\plugins\eye-eeg0.85'))
-
-sublist = [33:90];
+% use only file w reliable trigger
+hasTriggerList =readtable('triggerSources.csv');
+sublist = find(hasTriggerList.sdcard==1);
 dir_raw = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EyeMindLink\Data\';
 dir_pre = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EML Rosy\Data\EEG_processed';
 mkdir( dir_pre, 'opticat_cleaned')
 for s = 1:length(sublist)
+    tic;
     pID = ['EML1_',sprintf('%03d',sublist(s))];    
     
     % use Fieldtrip to load fif data from MNE (TODO can EEGlab read fif
@@ -66,6 +68,9 @@ for s = 1:length(sublist)
         fixations = [fixations;...
             readtable(fullfile(dir_raw,pID,'Unpacked',fixfiles(i).name))];
     end
+    % drop extreme fixations
+    fixations = fixations(fixations.duration>100 & fixations.duration<1000,:);
+    
     
     msgfiles = dir(fullfile(dir_raw,pID,'Unpacked','*Message.csv'));
     messages=[];
@@ -244,12 +249,14 @@ for s = 1:length(sublist)
     IC_THRESHOLD     = 1.1;   % variance ratio threshold (determined as suitable in Dimigen, 2020)
     SACC_WINDOW      = [5 0]; % saccade window (in samples!) to compute variance ratios (see Dimigen, 2020)
     PLOTFIG          = true;  % plot a figure visualizing influence of threshold setting?
-    ICPLOTMODE       = 1;     % plot component topographies (inverse weights)? (2 = only plot "bad" ocular ICs)
+    ICPLOTMODE       = 2;     % plot component topographies (inverse weights)? (2 = only plot "bad" ocular ICs)
     FLAGMODE         = 3;     % overwrite existing rejection flags? (3 = yes)
     
     % Automatically flag ocular ICs (Plöchl et al., 2012)
     [EEG, varratiotable] = pop_eyetrackerica(EEG,'saccade_either_eye','fixation_either_eye',SACC_WINDOW,IC_THRESHOLD,FLAGMODE,PLOTFIG,ICPLOTMODE);
-    
+    h=gcf();
+    saveas(h, fullfile(dir_pre, 'opticat_cleaned', [pID, '_detected_components.png']))
+
     % Remove flagged ocular ICs
     badcomps = EEG.reject.gcompreject;
     % choose max 2 with highest variance
@@ -297,4 +304,6 @@ for s = 1:length(sublist)
     saveas(h1, fullfile(dir_pre, 'opticat_cleaned', [pID, '_saccades.png']))
     saveas(h2, fullfile(dir_pre, 'opticat_cleaned', [pID, '_fixations.png']))
     pop_writeeeg( EEG, fullfile(dir_pre, 'opticat_cleaned',[pID '.edf']))
+    disp(['Done EyeCA for ' pID])
+    toc
 end

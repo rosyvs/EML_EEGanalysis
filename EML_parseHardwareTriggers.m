@@ -20,7 +20,7 @@ clear all; close all
 datapath = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EyeMindLink\Data';
 % sublist = % type 1: one-to-one log to trigger mapping, no hacking necessary
 % events present
-sublist = [87 90];
+sublist = [44:51];
 
 for s = 1:length(sublist)
     pID = ['EML1_',sprintf('%03d',sublist(s))];
@@ -134,7 +134,7 @@ for s = 1:length(sublist)
     
     %%  align hardware triggers to events in the log
     if ~isempty(BVfilename)
-        [x_keep, y_keep, offset, lag]=align_events_diff(eeg_hardtrig.sample_corrected,milliseconds(logtrig.datetime-min(logtrig.datetime)),100);
+        [x_keep, y_keep, offset, lag]=align_events_diff(eeg_hardtrig.sample_corrected,milliseconds(logtrig.datetime-min(logtrig.datetime)),1000);
         
         % store aligned events
         logtrig.eeg_sample = NaN(height(logtrig),1);
@@ -157,7 +157,7 @@ for s = 1:length(sublist)
         logtrig.EEG_lag_log = NaN(height(logtrig),1);
     end
     %%  align SD card hardware triggers to events in the log
-    [x_keepSD, y_keepSD, offsetSD, lagSD]=align_events_diff(eegSD_hardtrig.sample,milliseconds(logtrig.datetime-min(logtrig.datetime)),100);
+    [x_keepSD, y_keepSD, offsetSD, lagSD]=align_events_diff(eegSD_hardtrig.sample,milliseconds(logtrig.datetime-min(logtrig.datetime)),1000);
     
     % store aligned events
     logtrig.eegSD_sample = NaN(height(logtrig),1);
