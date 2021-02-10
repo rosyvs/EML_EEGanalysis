@@ -21,6 +21,7 @@ addpath(genpath('C:\Users\roso8920\Documents\MATLAB\eeglab_current\eeglab2021.0\
 % use only file w reliable trigger
 hasTriggerList =readtable('triggerSources.csv');
 sublist = find(hasTriggerList.sdcard==1);
+sublist = sublist(sublist~=73); % no eyetracking for these subjects
 dir_raw = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EyeMindLink\Data\';
 dir_pre = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EML Rosy\Data\EEG_processed';
 mkdir( dir_pre, 'opticat_cleaned')
@@ -84,26 +85,29 @@ for s = 1:length(sublist)
     % because the coutner went back to 0 for eyelink samples. ask Megan for
     % fixed. 
     
-    messages_trialonsets = messages(contains(messages.text,'TRIALID '),:);
-    dc_count=0; rc_count=0; % counters for recalibration events (nonunique TRIALID)
+    messages_trialonsets = messages(contains(messages.text,'TRIALID ') & ~contains(messages.text,{'DriftCorrect','Recal'}),:);
+    %logtrig_trialonsets = logtrig(~contains(logtrig.EVENT, {'DriftCorrect','Recal'}),:)
     logtrig.eye_sample = NaN(height(logtrig),1);
-    % for each event description in logtrig, find row in messages
-    for i = 1:height(logtrig)
-        msg = logtrig.EVENT{i};
-        eye_sample = messages.time(matches(messages.text,['TRIALID ' msg]));
-        temp(i) = length(eye_sample);
-        % drift corrects/recalibrations should be the only non-unique TRIALID messages: choose the corresponding one
+    % for each eyetracker message, find its corresponding row in logtrig
+    for i = 1:height(messages_trialonsets)
+        event = messages_trialonsets.text{i}; event=event(9:end); % remove 'TRIALID '
+        log_ix = find(matches(logtrig.EVENT,event));
+        eye_sample = messages_trialonsets.time(i) ;
+        temp(i) = length(log_ix);
+
         if temp(i) > 1
-            assert(contains(msg,{'DriftCorrect','Recal'}),['duplicate events found in eyetracker messages for event: ' msg]);
-            if contains(msg,'DriftCorrect');dc_count = dc_count+1;end
-            if contains(msg,'Recal');rc_count = rc_count+1;end
-            eye_sample = eye_sample(find(eye_sample>nanmax(logtrig.eye_sample(1:i-1)) ,1,'first'));
-        elseif isempty(eye_sample)
-            warning(['No eyetracking message for event: ' msg])
-            eye_sample = NaN;
+            warning(['multiple log entries found for eyetracker message ' event]);
+            % TODO find a way to sensibly choose in case of duplicates
+           %  log_ix = log_ix(logtrig.eye_sample() > messages_trialonsets(i-1)); 
+           log_ix=log_ix(end); % most likely the exp was started falsely once and the earlier one(s) should be discarded
         end
-        
-        logtrig.eye_sample(i) = eye_sample;
+        if isempty(log_ix)
+            warning(['No log event matches eyetracker message: ' event])
+        else
+            logtrig.eye_sample(log_ix) = eye_sample;
+
+        end
+      
     end
     % check eyetracker vs log timing jitter
     logtrig.eye_diff_since_last = [0; diff(logtrig.eye_sample)];
