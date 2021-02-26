@@ -26,6 +26,7 @@ dir_raw = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EyeMindLink\Data\';
 dir_pre = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EML Rosy\Data\EEG_processed';
 mkdir( dir_pre, 'opticat_cleaned')
 for s = 1:length(sublist)
+    close all
     tic;
     pID = ['EML1_',sprintf('%03d',sublist(s))];    
     
@@ -116,8 +117,13 @@ for s = 1:length(sublist)
     % recording over the streamed recording
     logtrig.eeg_use_diff_since_last = [0; diff(logtrig.eeg_use_sample)];
     eeg_log_jitter = range(logtrig.diff_since_last - logtrig.eeg_use_diff_since_last);
+
     
     
+    %% task events into event structure
+    % type, latency,duration
+    task_events = logtrig(:,{'EVENT','eeg_use_sample'});
+    task_events = renamevars(task_events,{'EVENT','eeg_use_sample'},{'type','latency'});
    
     %% interpolate all eye event timestamps to get closest eeg sample
     % first select rows with non-NaN values for both eeg and eyetracker samples
@@ -253,20 +259,33 @@ for s = 1:length(sublist)
     IC_THRESHOLD     = 1.1;   % variance ratio threshold (determined as suitable in Dimigen, 2020)
     SACC_WINDOW      = [5 0]; % saccade window (in samples!) to compute variance ratios (see Dimigen, 2020)
     PLOTFIG          = true;  % plot a figure visualizing influence of threshold setting?
-    ICPLOTMODE       = 2;     % plot component topographies (inverse weights)? (2 = only plot "bad" ocular ICs)
+    ICPLOTMODE       = 0;     % plot component topographies (inverse weights)? (2 = only plot "bad" ocular ICs)
     FLAGMODE         = 3;     % overwrite existing rejection flags? (3 = yes)
+    MAXCOMP = 2; % how many components to remove MAXIMUM? 
     
     % Automatically flag ocular ICs (Plöchl et al., 2012)
     [EEG, varratiotable] = pop_eyetrackerica(EEG,'saccade_either_eye','fixation_either_eye',SACC_WINDOW,IC_THRESHOLD,FLAGMODE,PLOTFIG,ICPLOTMODE);
     h=gcf();
-    saveas(h, fullfile(dir_pre, 'opticat_cleaned', [pID, '_detected_components.png']))
+    saveas(h, fullfile(dir_pre, 'opticat_cleaned', [pID, '_varratios.png']))
 
     % Remove flagged ocular ICs
     badcomps = EEG.reject.gcompreject;
     % choose max 2 with highest variance
-    [vr,worst2comps] = maxk(varratiotable(:,3),2);
+    [vr,worst2comps] = maxk(varratiotable(:,3),MAXCOMP);
     badcomps = intersect(find(badcomps), worst2comps);
     
+    % plot chosen components & remaining components    
+    h_compfig=figure(22); clf
+    for ci=1:length(badcomps)
+    subplot(1,MAXCOMP,ci)
+    topoplot(EEG.icawinv(:,badcomps(ci)),EEG.chanlocs, 'verbose', ...
+			      'off', 'chaninfo', EEG.chaninfo, 'numcontour', 8);
+    title(['Component ' num2str(badcomps(ci)) '| Var ratio = ' num2str(varratiotable(badcomps(ci),3))])
+    end
+    sgtitle([ pID ' eyeca removed components'],'Interpreter','none')
+    saveas(h_compfig, fullfile(dir_pre, 'opticat_cleaned', [pID, '_detected_components.png']))
+
+    %% remove bad components
     EEG      = pop_subcomp(EEG,badcomps); % remove them    
     
     %%  Plot SRP + FRP before and after artefact removal
@@ -307,7 +326,12 @@ for s = 1:length(sublist)
     %% save data and plots
     saveas(h1, fullfile(dir_pre, 'opticat_cleaned', [pID, '_saccades.png']))
     saveas(h2, fullfile(dir_pre, 'opticat_cleaned', [pID, '_fixations.png']))
-    pop_writeeeg( EEG, fullfile(dir_pre, 'opticat_cleaned',[pID '.edf']))
+    pop_saveset(EEG, 'filename',pID, 'filepath',fullfile(dir_pre, 'opticat_cleaned'), 'savemode','onefile')
     disp(['Done EyeCA for ' pID])
+    
+    % Finished ICa for 1 subject! 
+    load train 
+    sound(y,Fs)
+
     toc
 end

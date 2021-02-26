@@ -20,7 +20,7 @@ clear all; close all
 datapath = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EyeMindLink\Data';
 % sublist = % type 1: one-to-one log to trigger mapping, no hacking necessary
 % events present
-sublist = [44:51];
+sublist = [97:99];
 
 for s = 1:length(sublist)
     pID = ['EML1_',sprintf('%03d',sublist(s))];
@@ -66,10 +66,14 @@ for s = 1:length(sublist)
     logtrig.diff_since_last = [0; milliseconds(diff(logtrig.datetime))];
     logtrig = logtrig(logtrig.diff_since_last(2:end)>5,:);
     
+    %%%% STREAMED FILE %%%%
     %% Read EEG markers from streamed file
     BVfilename = dir(fullfile(datapath, pID, 'EEG','EML*.vmrk'));
     if isempty(BVfilename)
         disp('No streamed EEG file (EML1_xxx.vhdr) found. Check filenames')
+        eeg_start_pc1abs = [];eeg_start_pc2abs=[];
+        logtrig.eeg_sample = NaN(height(logtrig),1);
+        logtrig.EEG_lag_log = NaN(height(logtrig),1);
     else
         temp = fileread(fullfile(datapath, pID, 'EEG', BVfilename.name));
         eeg_start = regexp(temp, 'Mk1=New Segment,,1,1,0,(?<tst>[0-9]{20})','names').tst;
@@ -83,6 +87,8 @@ for s = 1:length(sublist)
         eeg_hardtrig = vmrk(contains(string(vmrk.comment),"M  1"),:);
         if isempty(eeg_hardtrig)
             disp(['No triggers found in streamed .vmrk!'])
+            logtrig.eeg_sample = NaN(height(logtrig),1);
+            logtrig.EEG_lag_log = NaN(height(logtrig),1);
         else
             eeg_hardtrig.PC2datetime = milliseconds(eeg_hardtrig.sample) +  eeg_start_pc2abs; % this is objective from the recording
             eeg_hardtrig.diff_since_last = [0; diff(eeg_hardtrig.sample)];
@@ -103,13 +109,80 @@ for s = 1:length(sublist)
                 end
                 disp(['EEG streamed over Bluetooth: ' num2str(sum(dropped.n_dropped)) ' samples were dropped in total over ' num2str(height(dropped)) ' dropout events'])
             end
+            
+            
+            %%  align hardware triggers to events in the log
+            [x_keep, y_keep, offset, lag]=align_events_diff(eeg_hardtrig.sample_corrected,milliseconds(logtrig.datetime-min(logtrig.datetime)),1000);
+            
+            % store aligned events
+            logtrig.eeg_sample = NaN(height(logtrig),1);
+            logtrig.eeg_sample(y_keep) =  eeg_hardtrig.sample(x_keep);
+            logtrig.EEG_lag_log=NaN(height(logtrig),1);
+            logtrig.EEG_lag_log(y_keep) = seconds(eeg_hardtrig.PC2datetime(x_keep)-logtrig.datetime(y_keep));
+            eeg_hardtrig.PC1datetime = NaT(height(eeg_hardtrig),1);
+            eeg_hardtrig.PC1datetime(x_keep) = logtrig.datetime(y_keep);% get time from log
+            eeg_hardtrig.val =NaN(height(eeg_hardtrig),1);
+            eeg_hardtrig.val(x_keep) = logtrig.VAL(y_keep);
+            eeg_hardtrig.eventLabel =cell(height(eeg_hardtrig),1);
+            eeg_hardtrig.eventLabel(x_keep) = logtrig.EVENT(y_keep);
+            eeg_hardtrig.EEG_lag_log = seconds(eeg_hardtrig.PC2datetime-eeg_hardtrig.PC1datetime);
+            
+            % estimate eeg_start_pc1abs
+            eeg_start_pc1abs = mean(logtrig.datetime(y_keep)- milliseconds(eeg_hardtrig.sample(x_keep)));
+            
+            
+            disp([num2str(height(logtrig)) ' events in log file'])
+            disp([num2str(height(eeg_hardtrig)) ' triggers in the streamed .vmrk file'])
+            disp(['    ' num2str(length(y_keep)) ' triggers matched to log events'])
+            %% Deal w missing hardware triggers in streamed file
+            logtrig.eeg_sample_est = logtrig.eeg_sample; % by default est = actual
+            
+            
+            
+            if length(y_keep) / height(logtrig) <.25
+                disp(['***WARNING!!! Too few hardware triggers from stream matched to logged events.'])
+                disp('Trigger repair would be unreliable, so was not attempted. Please use .xdf or SD card recording instead.')
+            elseif sum(isnan(logtrig.eeg_sample))==0
+            else
+                % Use matched hardware triggers to find temporal alignment to log.
+                % Use relative timings in log to estimate EEG sample number
+                disp(['Attempting to repair ' ...
+                    num2str(sum(isnan(logtrig.eeg_sample))) ' missing triggers in streamed recording using log.'])
+                to_fix = find(isnan(logtrig.eeg_sample));
+                good = find(~isnan(logtrig.eeg_sample));
+                for i= to_fix'
+                    % nearest 'good' trigger?
+                    [mn ix]=min(abs(i-good));
+                    % filling in backwards or forwards?
+                    if i-good(ix)<0 % backwards
+                        logtrig.eeg_sample_est(i) = logtrig.eeg_sample(good(ix))-sum(logtrig.diff_since_last((1+i):good(ix)));
+                    end
+                    if i-good(ix)>0 % forwards
+                        logtrig.eeg_sample_est(i) = logtrig.eeg_sample(good(ix))+sum(logtrig.diff_since_last((good(ix)+1):i));
+                    end
+                end
+                logtrig.eeg_sample_est(logtrig.eeg_sample_est<0) = NaN; % if the esimated timing is before EEG recording started
+                if sum(isnan(logtrig.eeg_sample_est))>0
+                    disp(['    Couldn''t repair all missing streamed triggers. Still missing ' num2str(sum(isnan(logtrig.eeg_sample_est)))])
+                else
+                    disp('    Repaired all missing streamed triggers.')
+                end
+            end
+            
         end
     end
+    
+    
+    
+    %%%% SD CARD %%%%
     %% Read EEG markers from SD card
     % get eeg data start time in absolute time, taken from PC2 clock
     SDfilename = dir(fullfile(datapath, pID, 'EEG','LA*.vmrk'));
     if isempty(SDfilename)
         disp('No SD card file (LAxxxxx.vhdr) found. Check filenames')
+        logtrig.SD_lag_BV = NaN(height(logtrig),1);
+        logtrig.eegSD_sample = NaN(height(logtrig),1);
+        
     else
         temp = fileread(fullfile(datapath, pID, 'EEG', SDfilename.name));
         eegSD_start = regexp(temp, 'Mk1=New Segment,,1,1,0,(?<tst>[0-9]{20})','names').tst;
@@ -123,142 +196,71 @@ for s = 1:length(sublist)
         eegSD_hardtrig.Properties.VariableNames = {'number','comment','sample','size','channel','date'};
         eegSD_hardtrig = eegSD_hardtrig(contains(string(eegSD_hardtrig.comment),"M  1"),:);
         if isempty(eegSD_hardtrig)
-            disp(['No triggers found in SD card .vmrk! Use xdf to recover triggers.'])
-            diary off
-            continue
+            disp(['No triggers found in SD card .vmrk!'])
+            y_keepSD =0;
+            logtrig.SD_lag_BV = NaN(height(logtrig),1);
+            
         else
+            %%  align SD card hardware triggers to events in the log
+            [x_keepSD, y_keepSD, offsetSD, lagSD]=align_events_diff(eegSD_hardtrig.sample,milliseconds(logtrig.datetime-min(logtrig.datetime)),1000);
+            
+            % store aligned events
+            logtrig.eegSD_sample = NaN(height(logtrig),1);
+            logtrig.eegSD_sample(y_keepSD) =  eegSD_hardtrig.sample(x_keepSD);
+            eegSD_hardtrig.PC1datetime = NaT(height(eegSD_hardtrig),1);
+            eegSD_hardtrig.PC1datetime(x_keepSD) = logtrig.datetime(y_keepSD);    % get time from log
+            eegSD_hardtrig.val =NaN(height(eegSD_hardtrig),1);
+            eegSD_hardtrig.val(x_keepSD) = logtrig.VAL(y_keepSD);
+            eegSD_hardtrig.eventLabel =cell(height(eegSD_hardtrig),1);
+            eegSD_hardtrig.eventLabel(x_keepSD) = logtrig.EVENT(y_keepSD);
             eegSD_hardtrig.PC2datetime = milliseconds(eegSD_hardtrig.sample) +  eegSD_start_pc2abs; % this is objective from the recording
             eegSD_hardtrig.diff_since_last = [0; diff(eegSD_hardtrig.sample)];
-        end
-    end
-    
-    %%  align hardware triggers to events in the log
-    if ~isempty(BVfilename)
-        [x_keep, y_keep, offset, lag]=align_events_diff(eeg_hardtrig.sample_corrected,milliseconds(logtrig.datetime-min(logtrig.datetime)),1000);
-        
-        % store aligned events
-        logtrig.eeg_sample = NaN(height(logtrig),1);
-        logtrig.eeg_sample(y_keep) =  eeg_hardtrig.sample(x_keep);
-        logtrig.EEG_lag_log=NaN(height(logtrig),1);
-        logtrig.EEG_lag_log(y_keep) = seconds(eeg_hardtrig.PC2datetime(x_keep)-logtrig.datetime(y_keep));
-        eeg_hardtrig.PC1datetime = NaT(height(eeg_hardtrig),1);
-        eeg_hardtrig.PC1datetime(x_keep) = logtrig.datetime(y_keep);% get time from log
-        eeg_hardtrig.val =NaN(height(eeg_hardtrig),1);
-        eeg_hardtrig.val(x_keep) = logtrig.VAL(y_keep);
-        eeg_hardtrig.eventLabel =cell(height(eeg_hardtrig),1);
-        eeg_hardtrig.eventLabel(x_keep) = logtrig.EVENT(y_keep);
-        eeg_hardtrig.EEG_lag_log = seconds(eeg_hardtrig.PC2datetime-eeg_hardtrig.PC1datetime);
-        
-        % estimate eeg_start_pc1abs
-        eeg_start_pc1abs = mean(logtrig.datetime(y_keep)- milliseconds(eeg_hardtrig.sample(x_keep)));
-    else
-        eeg_start_pc1abs = [];eeg_start_pc2abs=[];
-        logtrig.eeg_sample = NaN(height(logtrig),1);
-        logtrig.EEG_lag_log = NaN(height(logtrig),1);
-    end
-    %%  align SD card hardware triggers to events in the log
-    [x_keepSD, y_keepSD, offsetSD, lagSD]=align_events_diff(eegSD_hardtrig.sample,milliseconds(logtrig.datetime-min(logtrig.datetime)),1000);
-    
-    % store aligned events
-    logtrig.eegSD_sample = NaN(height(logtrig),1);
-    logtrig.eegSD_sample(y_keepSD) =  eegSD_hardtrig.sample(x_keepSD);
-    eegSD_hardtrig.PC1datetime = NaT(height(eegSD_hardtrig),1);
-    eegSD_hardtrig.PC1datetime(x_keepSD) = logtrig.datetime(y_keepSD);    % get time from log
-    eegSD_hardtrig.val =NaN(height(eegSD_hardtrig),1);
-    eegSD_hardtrig.val(x_keepSD) = logtrig.VAL(y_keepSD);
-    eegSD_hardtrig.eventLabel =cell(height(eegSD_hardtrig),1);
-    eegSD_hardtrig.eventLabel(x_keepSD) = logtrig.EVENT(y_keepSD);
-    eegSD_hardtrig.EEG_lag_log =  seconds(eegSD_hardtrig.PC2datetime-eegSD_hardtrig.PC1datetime);
-    
-    
-    % lag between PC2 timestamps (i.e. based on the eeg file start time)
-    % for SD card rel to BV streamed data
-    try
-        logtrig.SD_lag_BV = seconds(milliseconds(logtrig.eeg_sample - logtrig.eegSD_sample)-(eegSD_start_pc2abs-eeg_start_pc2abs));
-    catch
-        logtrig.SD_lag_BV = NaN(height(logtrig),1);
-    end
-    
-    
-    
-    %% print some diagnostics
-    
-    disp([num2str(height(logtrig)) ' events in log file'])
-    if ~isempty(BVfilename)
-        
-        disp([num2str(height(eeg_hardtrig)) ' triggers in the BV .vmrk file'])
-        disp(['    ' num2str(length(y_keep)) ' triggers matched to log events'])
-    end
-    disp([num2str(height(eegSD_hardtrig)) ' triggers in the SD card .vmrk file'])
-    disp(['    ' num2str(length(y_keepSD)) ' triggers matched to log events'])
-    
-    %% Deal w missing hardware triggers in streamed file
-    logtrig.eeg_sample_est = logtrig.eeg_sample; % by default est = actual
-    
-    if ~isempty(BVfilename)
-        
-        if length(y_keep) / height(logtrig) <.25
-            disp(['***WARNING!!! Too few hardware triggers from stream matched to logged events.'])
-            disp('Trigger repair would be unreliable, so was not attempted. Please use .xdf or SD card recording instead.')
-        elseif sum(isnan(logtrig.eeg_sample))==0
-        else
-            % Use matched hardware triggers to find temporal alignment to log.
-            % Use relative timings in log to estimate EEG sample number
-            disp(['Attempting to repair ' ...
-                num2str(sum(isnan(logtrig.eeg_sample))) ' missing triggers in streamed recording using log.'])
-            to_fix = find(isnan(logtrig.eeg_sample));
-            good = find(~isnan(logtrig.eeg_sample));
-            for i= to_fix'
-                % nearest 'good' trigger?
-                [mn ix]=min(abs(i-good));
-                % filling in backwards or forwards?
-                if i-good(ix)<0 % backwards
-                    logtrig.eeg_sample_est(i) = logtrig.eeg_sample(good(ix))-sum(logtrig.diff_since_last((1+i):good(ix)));
-                end
-                if i-good(ix)>0 % forwards
-                    logtrig.eeg_sample_est(i) = logtrig.eeg_sample(good(ix))+sum(logtrig.diff_since_last((good(ix)+1):i));
-                end
+            eegSD_hardtrig.EEG_lag_log =  seconds(eegSD_hardtrig.PC2datetime-eegSD_hardtrig.PC1datetime);
+            
+            
+            % lag between PC2 timestamps (i.e. based on the eeg file start time)
+            % for SD card rel to BV streamed data
+            try
+                logtrig.SD_lag_BV = seconds(milliseconds(logtrig.eeg_sample - logtrig.eegSD_sample)-(eegSD_start_pc2abs-eeg_start_pc2abs));
             end
-            logtrig.eeg_sample_est(logtrig.eeg_sample_est<0) = NaN; % if the esimated timing is before EEG recording started
-            if sum(isnan(logtrig.eeg_sample_est))>0
-                disp(['    Couldn''t repair all missing streamed triggers. Still missing ' num2str(sum(isnan(logtrig.eeg_sample_est)))])
+            
+            
+            disp([num2str(height(eegSD_hardtrig)) ' triggers in the SD card .vmrk file'])
+            disp(['    ' num2str(length(y_keepSD)) ' triggers matched to log events'])
+            
+            %% Deal w missing hardware triggers for SD card
+            logtrig.eegSD_sample_est = logtrig.eegSD_sample;
+            if length(y_keepSD) / height(logtrig) <.25
+                disp(['***WARNING!!! Too few hardware triggers from SD card matched to logged events'])
+                disp('Trigger repair would be unreliable, so was not attempted. Please use .xdf or streamed recording instead.')
+            elseif sum(isnan(logtrig.eegSD_sample))==0
             else
-                disp('    Repaired all missing streamed triggers.')
+                % Use matched hardware triggers to find temporal alignment to log.
+                % Use relative timings in log to estimate EEG sample number
+                disp(['Attempting to repair '  ...
+                    num2str(sum(isnan(logtrig.eegSD_sample))) ' missing triggers in SD recording using log.'])
+                to_fix = find(isnan(logtrig.eegSD_sample));
+                good = find(~isnan(logtrig.eegSD_sample));
+                for i= to_fix'
+                    % nearest 'good' trigger?
+                    [mn ix]=min(abs(i-good));
+                    % filling in backwards or forwards?
+                    if i-good(ix)<0 % backwards
+                        logtrig.eegSD_sample_est(i) = logtrig.eegSD_sample(good(ix))-sum(logtrig.diff_since_last((1+i):good(ix)));
+                    end
+                    if i-good(ix)>0 % forwards
+                        logtrig.eegSD_sample_est(i) = logtrig.eegSD_sample(good(ix))+sum(logtrig.diff_since_last((good(ix)+1):i));
+                    end
+                end
+                logtrig.eegSD_sample_est(logtrig.eegSD_sample_est<0) = NaN; % if the esimated timing is before EEG recording started
+                if sum(isnan(logtrig.eegSD_sample_est))>0
+                    disp(['    Couldn''t repair all missing triggers on SD. Still missing ' num2str(sum(isnan(logtrig.eegSD_sample_est)))])
+                else
+                    disp('    Repaired all missing triggers from SD recording.')
+                end
             end
         end
     end
-    %% same for SD card
-    logtrig.eegSD_sample_est = logtrig.eegSD_sample;
-    if length(y_keepSD) / height(logtrig) <.25
-        disp(['***WARNING!!! Too few hardware triggers from SD card matched to logged events'])
-        disp('Trigger repair would be unreliable, so was not attempted. Please use .xdf or streamed recording instead.')
-    elseif sum(isnan(logtrig.eegSD_sample))==0
-    else
-        % Use matched hardware triggers to find temporal alignment to log.
-        % Use relative timings in log to estimate EEG sample number
-        disp(['Attempting to repair '  ...
-            num2str(sum(isnan(logtrig.eegSD_sample))) ' missing triggers in SD recording using log.'])
-        to_fix = find(isnan(logtrig.eegSD_sample));
-        good = find(~isnan(logtrig.eegSD_sample));
-        for i= to_fix'
-            % nearest 'good' trigger?
-            [mn ix]=min(abs(i-good));
-            % filling in backwards or forwards?
-            if i-good(ix)<0 % backwards
-                logtrig.eegSD_sample_est(i) = logtrig.eegSD_sample(good(ix))-sum(logtrig.diff_since_last((1+i):good(ix)));
-            end
-            if i-good(ix)>0 % forwards
-                logtrig.eegSD_sample_est(i) = logtrig.eegSD_sample(good(ix))+sum(logtrig.diff_since_last((good(ix)+1):i));
-            end
-        end
-        logtrig.eegSD_sample_est(logtrig.eegSD_sample_est<0) = NaN; % if the esimated timing is before EEG recording started
-        if sum(isnan(logtrig.eegSD_sample_est))>0
-            disp(['    Couldn''t repair all missing triggers on SD. Still missing ' num2str(sum(isnan(logtrig.eegSD_sample_est)))])
-        else
-            disp('    Repaired all missing triggers from SD recording.')
-        end
-    end
-    
     %
     
     %% store diagnistics
