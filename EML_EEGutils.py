@@ -78,9 +78,6 @@ class emleeg(object):
         #pyprepobj.find_bad_by_correlation()
         bads = pyprepobj.get_bads(verbose = True)
         print("Bad channels: {0} of {1}".format(len(bads), len(mne.pick_types(self.raw.info,eeg=True))))
-
-
-
         self.prepro.info['bads']= bads
         return bads
 

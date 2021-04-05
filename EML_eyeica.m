@@ -22,6 +22,8 @@ addpath(genpath('C:\Users\roso8920\Documents\MATLAB\eeglab_current\eeglab2021.0\
 hasTriggerList =readtable('triggerSources.csv');
 sublist = find(hasTriggerList.sdcard==1);
 sublist = sublist(sublist~=73); % no eyetracking for these subjects
+eeg_exclude = [20, 21,22, 26,77]; % Subj to exclude because no eeg or no trigger
+
 dir_raw = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EyeMindLink\Data\';
 dir_pre = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EML Rosy\Data\EEG_processed';
 mkdir( dir_pre, 'opticat_cleaned')

@@ -1,4 +1,4 @@
-function [x_keep, y_keep, offset, lag] = align_events_diff(x,y,tol)
+function [x_keep, y_keep, offset, lag, h] = align_events_diff(x,y,tol)
 % align two timeseries of irregular, discrete events,
 % allowing for missing events in x, y or a combination of both
 
@@ -146,7 +146,7 @@ lag = mean(y(y_keep)-x(x_keep));
 % Y still needs to be corrected for timestamp lag for visualisatino
 % purposes
 yyy = y-lag; 
-figure(99); clf;
+h=figure(); clf;
 plot(x(x_keep), ones(size(x_keep)),'k.')
 hold on
 plot(x(setdiff(1:end,x_keep)), ones(length(x)-length(x_keep)),'r.','MarkerSize',18)
