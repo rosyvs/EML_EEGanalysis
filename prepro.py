@@ -11,7 +11,7 @@ datadir = os.path.normpath('C:/Users/roso8920/Dropbox (Emotive Computing)/EyeMin
 outdir = os.path.normpath('../../Data/EEG_processed/')# save directory for processed EEG data
 triggerSources = pd.read_csv('triggerSources.csv') # available triggers (as checked by Rosy)
 fnroot = 'EML1_'
-participants = range(20,25) # recall that range is exclusive in Python - it will do first : end-1
+participants = range(110,120) # recall that range is exclusive in Python - it will do first : end-1
 
 for p in participants:
     pID= fnroot + '{:03d}'.format(p)  

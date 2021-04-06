@@ -50,13 +50,11 @@ clear all; close all
 datapath = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EyeMindLink\Data';
 % sublist = % type 1: one-to-one log to trigger mapping, no hacking necessary
 % events present
-sublist = [19:108]; % subject 19 is the first with EEG.
+sublist = [117]; % subject 19 is the first with EEG.
 beh_data = readtable('..\..\Data\EML1_allResponsesMain.csv');
 beh_data = renamevars(beh_data, 'identifier', 'EVENT');
 beh_data = removevars(beh_data, 'Var1');
 trigSources = readtable('triggerSources.csv'); % which trigger sources are available and valid (as manually decided by Rosy based on trigger alignment in prior runs of this script)
-% temp debug
-sublist = [73 76 78 87 102 99]; % had NaNs for page numbers
 
 for s = 1:length(sublist)
     pID = ['EML1_',sprintf('%03d',sublist(s))];
