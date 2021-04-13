@@ -331,7 +331,7 @@ for s = 1:length(sublist)
     
     %% check correlation coefficient between features
     h= figure(3);
-    colormap( getPyPlot_cMap('RdBu') )
+    colormap( min(max(cbrewer('div' ,'RdBu'),0 ),1) )
     imagesc(corrcoef(table2array(T)))                                 % Original 'XTick' Values
     xtlbl = T.Properties.VariableNames;                     % New 'XTickLabel' Vector
     set(gca, 'XTick',1:length(xtlbl), 'XTickLabel',xtlbl, 'XTickLabelRotation',90)

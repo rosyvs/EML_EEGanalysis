@@ -11,7 +11,7 @@ datadir = os.path.normpath('C:/Users/roso8920/Dropbox (Emotive Computing)/EyeMin
 outdir = os.path.normpath('../../Data/EEG_processed/')# save directory for processed EEG data
 triggerSources = pd.read_csv('triggerSources.csv') # available triggers (as checked by Rosy)
 fnroot = 'EML1_'
-participants = range(110,120) # recall that range is exclusive in Python - it will do first : end-1
+participants = range(19,121) # recall that range is exclusive in Python - it will do first : end-1
 
 for p in participants:
     pID= fnroot + '{:03d}'.format(p)  
@@ -70,7 +70,7 @@ for p in participants:
         e.checkChannels() # uses pyprep
         e.prepro.set_montage('standard_1005')
         e.prepro.interpolate_bads(reset_bads=False) # interpolate bad channels based on neighbours but keep them marked as 'bad'
-        # e.prepro.set_eeg_reference() # ref to average
+        e.prepro.set_eeg_reference() # ref to average
 
         # write preprocessed data to file & record which input data file was used
         e.prepro.save(fname=os.path.normpath(outdir + '/' + pID + '_p.fif'),overwrite=True)
