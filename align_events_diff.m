@@ -42,8 +42,8 @@ diffy = diff(y);
 
 % for each element in diffx find its distance to diffy
 for i=1:length(diffx)
-%             diffmatrix(:,i) = diffx(i)-diffy;
-[m,j]=min(abs(diffx(i)-diffy));
+    %             diffmatrix(:,i) = diffx(i)-diffy;
+    [m,j]=min(abs(diffx(i)-diffy));
     diffmatchings(i,1) = i;
     diffmatchings(i,2) = j;
     resid(i) = diffx(i)-diffy(j); % remaining unnacounted time once diff intervals are matched
@@ -55,10 +55,10 @@ all_offsets = diffmatchings(:,2)-diffmatchings(:,1);
 offset=mode(all_offsets(abs(resid)<=tol));
 
 % realign events based on estimated offset
-    x_al = x;
-    y_al = y;
+x_al = x;
+y_al = y;
 if offset <0
-    y_al=[NaN(-offset,1); y];   
+    y_al=[NaN(-offset,1); y];
 elseif offset>0
     x_al=[NaN(offset,1); x];
 end
@@ -74,7 +74,7 @@ end
 % estimate timestamp lag based on aligned events
 all_lags = y_al-x_al;
 lag_candidate=all_lags((find(abs(resid)<=tol)+abs(offset))<=length(all_lags)); %restrict to locations in x with close-enough matchings
-lag_candidate_r = tol*round(lag_candidate/tol); % round to nearest tol 
+lag_candidate_r = tol*round(lag_candidate/tol); % round to nearest tol
 lag_r=mode(lag_candidate_r); % find modal rounded value
 % get more precise estimate by averaging over all lags within tol of rounded value
 lag=mean(lag_candidate(lag_candidate_r==lag_r));
@@ -102,7 +102,7 @@ dupx_ix = setdiff(1:length(xx_keep),ind); % indices of duplicated
 if ~isempty(dupx_ix) % multiple y values found for given x
     dupx_ev = xx_keep(dupx_ix); % what events are duplicated?
     for ev = unique(dupx_ev)'
-   ix=find(xx_keep==ev); % indices in xkeep / ykeep that pertain to this duplicate event in xkeep
+        ix=find(xx_keep==ev); % indices in xkeep / ykeep that pertain to this duplicate event in xkeep
         % choose closest or earliest in case of tie
         [m, i] = min( abs( yy(yy_keep(ix)) - xx(xx_keep(ix)) ));
         rem = [rem; ix(setdiff(1:length(ix),i))]; % xx_keep/yy_keep indices to remove. Remove all except the chosen one
@@ -137,24 +137,26 @@ end
 
 % xkeep and ykeep should be the same length, indicating 1-to-1 mapping
 assert(length(x_keep)==length(y_keep),'Error: xkeep and ykeep are not the same length!')
-
 % re-estimate lag
 lag = mean(y(y_keep)-x(x_keep));
-
-% plots
-% take original x,y - not aligned - and plot. 
-% Y still needs to be corrected for timestamp lag for visualisatino
-% purposes
-yyy = y-lag; 
-h=figure(); clf;
-plot(x(x_keep), ones(size(x_keep)),'k.')
-hold on
-plot(x(setdiff(1:end,x_keep)), ones(length(x)-length(x_keep)),'r.','MarkerSize',18)
-
-plot(yyy(y_keep), zeros(size(y_keep)),'k.')
-plot(yyy(setdiff(1:end,y_keep)), zeros(length(yyy)-length(y_keep)),'r.','MarkerSize',18)
-
-line([x(x_keep) yyy(y_keep) ]' ,[ ones(size(x_keep)) zeros(size(y_keep))]')
-title('events in x (top) matched to events in y (bottom)')
-
+if length(x_keep)>0
+    
+    % plots
+    % take original x,y - not aligned - and plot.
+    % Y still needs to be corrected for timestamp lag for visualisatino
+    % purposes
+    yyy = y-lag;
+    h=figure(); clf;
+    plot(x(x_keep), ones(size(x_keep)),'k.')
+    hold on
+    plot(x(setdiff(1:end,x_keep)), ones(length(x)-length(x_keep)),'r.','MarkerSize',18)
+    
+    plot(yyy(y_keep), zeros(size(y_keep)),'k.')
+    plot(yyy(setdiff(1:end,y_keep)), zeros(length(yyy)-length(y_keep)),'r.','MarkerSize',18)
+    
+    line([x(x_keep) yyy(y_keep) ]' ,[ ones(size(x_keep)) zeros(size(y_keep))]')
+    title('events in x (top) matched to events in y (bottom)')
+else
+    h=[]
+end
 end

@@ -3,7 +3,7 @@
 
 datapath = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EyeMindLink\Data';
 
-sublist = {'020'};
+sublist = {'112'};
 
 for s = 1:length(sublist)
     pID = ['EML1_',sublist{s}];

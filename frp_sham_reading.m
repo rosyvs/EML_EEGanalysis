@@ -1,6 +1,7 @@
 % fixations sham vs word
 
-% cleaned vs uncleaned data
+% eyeCA cleaned vs uncleaned data
+% These FRPS have NOT been overlap corrected
 
 clear all; close all
 eeglab nogui % sets path defaults
@@ -115,3 +116,4 @@ for s = 1:length(sublist)
     
     toc
 end
+%TODO group level analyses

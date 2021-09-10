@@ -17,15 +17,15 @@
 
 clear all; close all
 eeglab nogui % sets path defaults
-addpath(genpath('C:\Users\roso8920\Documents\MATLAB\eeglab_current\eeglab2021.0\plugins\eye-eeg0.85'))
 % use only file w reliable trigger
 hasTriggerList =readtable('triggerSources.csv');
 sublist = find(hasTriggerList.sdcard==1);
-sublist = sublist(sublist~=73); % no eyetracking for these subjects
-eeg_exclude = [20, 21,22, 26,77]; % Subj to exclude because no eeg or no trigger
+sublist = 60:70
+exclude = [20, 21,22, 26,73, 77]; % Subj to exclude because no eeg or no trigger etc
+sublist = sublist(~ismember(sublist,exclude));
 
-dir_raw = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EyeMindLink\Data\';
-dir_pre = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EML Rosy\Data\EEG_processed';
+dir_raw = '/Volumes/Blue1TB/EyeMindLink/Data';
+dir_pre = fullfile('..','..','Data','EEG_processed') ;
 mkdir( dir_pre, 'opticat_cleaned')
 for s = 1:length(sublist)
     close all
@@ -133,7 +133,7 @@ for s = 1:length(sublist)
     F = griddedInterpolant(logtrig.eye_sample(ix), logtrig.eeg_use_sample(ix), 'spline');
     % plot interpolant: this should be a straight line and the red points shold
     % be on the line
-    h0=figure()
+    h0=figure();
     plot(min(F.GridVectors{1,1}):max(F.GridVectors{1,1}),F(min(F.GridVectors{1,1}):max(F.GridVectors{1,1})))
     hold on
     plot(logtrig.eye_sample(ix), logtrig.eeg_use_sample(ix),'ro')
@@ -148,7 +148,7 @@ for s = 1:length(sublist)
     
      %%%% TODO
     % choice of eye to use - earliest event? both? best tracked eye?
-    
+    %% TODO resample ET durations
     
     %% convert to EEGLAB to use OPTICAT
     EEG = fieldtrip2eeglab(EEG_ft.hdr, EEG_ft.trial{1});

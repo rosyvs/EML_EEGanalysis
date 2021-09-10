@@ -7,11 +7,11 @@ EEG analysis for EML: preprocessing pipeline
 
 reprepro = True # re-do preprocessing. If False, checks outdir and skips participants with a prepro'd file
 plotTF = False
-datadir = os.path.normpath('C:/Users/roso8920/Dropbox (Emotive Computing)/EyeMindLink/Data')
+datadir = os.path.normpath('/Volumes/Blue1TB/EyeMindLink/Data')
 outdir = os.path.normpath('../../Data/EEG_processed/')# save directory for processed EEG data
 triggerSources = pd.read_csv('triggerSources.csv') # available triggers (as checked by Rosy)
 fnroot = 'EML1_'
-participants = range(19,121) # recall that range is exclusive in Python - it will do first : end-1
+participants = range(141,167) # recall that range is exclusive in Python - it will do first : end-1
 
 for p in participants:
     pID= fnroot + '{:03d}'.format(p)  
@@ -33,7 +33,8 @@ for p in participants:
         # Choose EEG file to process: prefer SD card if triggers available, otherwise streamed
         trigSource = triggerSources[triggerSources['pID']==pID]
         use_streamed = False # default not to use streamed file unless issues exist w SD rec
-        if trigSource.iloc[0]['sdcard'] or trigSource.iloc[0]['xdf']:
+     
+        if trigSource.iloc[0]['sdcard']:
             print_and_log('Will look for an SD card recording (LA*.vhdr)')
             vhdr = glob.glob(pIDpath + "/LA" +  "*.vhdr") # filenames starting 'LA' for SD card recording
             if not(vhdr):

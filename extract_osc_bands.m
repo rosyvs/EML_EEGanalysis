@@ -4,10 +4,10 @@ clear all; close all
 % use only file w reliable trigger
 triggerSources =readtable('triggerSources.csv');
 sublist = find(triggerSources.sdcard+triggerSources.streamed + triggerSources.xdf); % subjects withat least one source of triggers
-eeg_exclude = [20,21, 26, 73, 76, 77, 78, 99, 102]; % Subj to exclude because no eeg or no trigger or other issues
+
+eeg_exclude = [20,21, 26, 73, 76, 77, 78, 88,138]; % Subj to exclude because no eeg or no trigger or other issues
 sublist = sublist(~ismember(sublist,eeg_exclude));
-%sublist = find(hasTriggerList.sdcard==1);
-%sublist = sublist(sublist~=73); % EEG but no eyetracking for these subjects
+% sublist = [19];
 
 dir_raw = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EyeMindLink\Data\';
 dir_info = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EML Rosy\Data\EEG_processed\';
@@ -83,7 +83,7 @@ for s = 1:length(sublist)
     % doesn't like the overlapping trials) we take the start of the next
     % trial if the end time overlaps.
     logtrig.samp_to_next = diff([logtrig.eeg_use_sample; NaN]);
-    durations=  nanmin(logtrig.responseTime_sec*EEGft.fsample , logtrig.samp_to_next-1);
+    durations=  nanmax(1,nanmin(logtrig.responseTime_sec*EEGft.fsample , logtrig.samp_to_next-1));
     
     trl(:,2) = logtrig.eeg_use_sample + durations;
     
@@ -106,7 +106,17 @@ for s = 1:length(sublist)
         trl=trl( trl(:,1)<=size(EEGft.trial{1},2) & trl(:,2)<=size(EEGft.trial{1},2),:);
     end
     
+     % if any trials have NEGATIVE values for estimated EEG sample, truncate
+    if any(trl(:,[1 2])<1)
+        disp('events precede start of EEG recording, Truncating trl.')
+        trl=trl( trl(:,1)>0 & trl(:,2)>0,:);
+    end
     
+    % if any trials have NEGATIVE values for estimated EEG sample, truncate
+    if any(trl(:,[1 2])<1)
+        disp('events precede start of EEG recording, Truncating trl.')
+        trl=trl( trl(:,1)>0 & trl(:,2)>0,:);
+    end
     %% Prepro for band features
     cfg=[];
     cfg.demean = 'yes';
@@ -345,7 +355,9 @@ for s = 1:length(sublist)
     T_all = [T_all; T];
 end
 T_all.text(T_all.texti>0) = [texts(T_all.texti(T_all.texti>0))];
-T_all.text(T_all.texti==0) = {'sham'};
+%T_all.text(T_all.texti==0) = {'sham'};
+T_all.qType(T_all.VAL==7)={'reading'};
+T_all.qType(T_all.VAL==20)={'sham'};
 
-writetable(T_all,fullfile(dir_pre, 'osc', ['band_features_n' num2str(length(sublist)) '.csv']))
+writetable(T_all,fullfile(dir_pre, 'osc', ['band_features_n' num2str(length(unique(cellstr(T_all.pID)))) '_upto_' pID '.csv']))
 
