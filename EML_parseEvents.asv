@@ -53,13 +53,13 @@
 %%
 clear all; close all
 %%%%%%%%%%%%%%%%%%%
-sublist = [140:156 ]; % subject 19 is the first with EEG.
+sublist = [31]; % subject 19 is the first with EEG.
 %%%%%%%%%%%%%%%%%%%
 
-copy_to_dropbox=1; % whether to additionally attempt copy of _events files to dropbox, if data is being read from local copy
-dropboxpath = '~/Dropbox (Emotive Computing)/EyeMindLink/Processed/events/';
+copy_to_dropbox=1; % whether to additionally attempt upload to dropbox, if data is being read from elsewhere
+dropboxpath = '~/Users/Rosy/Dropbox (Emotive Computing)/EyeMindLink/Data';
 
-datapath = '/Volumes/Blue1TB/localEyeMindLink/Data';
+datapath = '/Volumes/Blue1TB/EyeMindLink/Data';
 % sublist = % type 1: one-to-one log to trigger mapping, no hacking necessary
 % events present
 
@@ -88,7 +88,6 @@ for s = 1:length(sublist)
         logtrig.Properties.VariableNames{7} = 'VAL';
         logtrig.MSG = string(logtrig.Var1) + ' ' + string(logtrig.Var2)+ ' ' + string(logtrig.Var3)+ '   ' + string(logtrig.Var4) + ' ' + string(logtrig.Var5);
         logtrig=removevars(logtrig, {'Var1','Var2','Var3','Var4','Var5'});
-        logtrig = movevars(logtrig, 'MSG', 'Before',1);
         % logtrig.MSG = join(join(join(cellstr(string(logtrig.datetime)),logtrig.Var3,' '),join(logtrig.Var3,logtrig.Var4,' '),' '),logtrig.Var5,'  ');
     else
         logtrig = readtable(fullfile(datapath,pID,[pID '_Trials.txt']) ,'Delimiter','\t');
@@ -356,7 +355,6 @@ for s = 1:length(sublist)
         % time-since-boot of each PC. But the log has timestamps in yymmdd so
         
         %     if isempty(eeg_hardtrig) && isempty(eegSD_hardtrig)
-        skipEEG=0; % this flag will be set to 1 if the below attempts to get EEG timing fail.
         if no_bv && no_sd
             disp('No (usable) hardware triggers')
             if isempty(eeg_start_pc2abs) && isempty(eegSD_start_pc2abs)
@@ -370,156 +368,155 @@ for s = 1:length(sublist)
                 catch
                     disp('load_xdf failed - perhaps the xdf file is corrupted. ')
                     disp('This EEG data is unusable - skipping.')
-                    skipEEG = 1;
-                    diary off
-                end
-                
-                if ~skipEEG
-                    % select the trigger stream
-                    trig_ix = find(strcmp(cellfun(@(sas) sas.info.name, xdf_unsync,'uni',false),{'eyeLink_trigger'}));
-                    if isempty(trig_ix)
-                        disp('No LSL stream named eyeLink_trigger. Will skip participant. ')
-                        disp('Maybe in a future iteration of this script someone may have implemented very approximate timing using NIRStar trig.')
-                    else
-                        xdf_trig_pc1 = xdf_sync{trig_ix};
-                        xdf_trig_pc2 = xdf_unsync{trig_ix};
-                        
-                        eeg_ix = find(contains(cellfun(@(sas) sas.info.name, xdf_sync,'uni',false),{'EEG'}));
-                        eeg_lsl_exists = ~isempty(eeg_ix);
-                        %         if eeg_lsl_exists
-                        %             % use lsl eeg
-                        %         else
-                        %% get the clock offset from the xdf
-                        % this is offset between boot times not between absolute times.
-                        try
-                            all_offset_tpc1 = str2double({cell2mat(xdf_trig_pc1.info.clock_offsets.offset).time})';
-                            all_offset_val = str2double({cell2mat(xdf_trig_pc1.info.clock_offsets.offset).value})'; % note this is pc2 time minus pc1
-                        catch
-                            disp('No clock offset recorded - alignment of EEG to log is not currently possible.')
-                            disp('If EEG timeseries was recorded over LSL you could use that but it will be unreliable.')
-                            
-                            disp('This EEG data is unusable - skipping.')
-                            skipEEG=1;
-                            diary off
-                        end
-                        
-                        if ~skipEEG
-                        mean_offset = mean(all_offset_val); % in sec
-                        range_offset = range(all_offset_val); % in sec
-                        resid_offset = all_offset_val - mean_offset; % in sec, will use later to fine tune timings
-                        figure(99); clf
-                        scatter(all_offset_tpc1,all_offset_val,'.')
-                        xlabel('time (s since PC2 boot)')
-                        ylabel('offset (boot time PC2 - PC1)')
-                        title([pID ' LSL clock offsets'], 'interpreter','none')
-                        
-                        %% Compare log and LSL timestamps
-                        figure(22);clf
-                        plot(logtrig.datetime(1:min([length(xdf_trig_pc1.time_stamps) height(logtrig)])),...
-                            xdf_trig_pc2.time_stamps(1:min([length(xdf_trig_pc1.time_stamps) height(logtrig)])),'o' )
-                        title([pID ' triallog vs LSL triggers'], 'interpreter','none')
-                        xlabel('log timestamp')
-                        ylabel('LSL timestamp')
-                        lsl_lag_log_range = milliseconds(range(logtrig.datetime(1:min([length(xdf_trig_pc1.time_stamps) height(logtrig)])) - ...
-                            seconds(xdf_trig_pc2.time_stamps(1:min([length(xdf_trig_pc1.time_stamps) height(logtrig)])))'));
-                        %% Estimate PC1 absolute boot time
-                        % subtract the LSL triggers uncorrected timestamps from the log
-                        % timestamps, should all be the same or v similar
-                        % note there are some weird delays introduced later in the session
-                        % where lsl timestamps lag behind the log, so only take events upt o
-                        % event_cutoff
-                        event_cutoff = 25; % use earliest n events (later ones may have mroe drift)
-                        pc1_boot_ests = logtrig.datetime(1:event_cutoff) - ...
-                            seconds(xdf_trig_pc2.time_stamps(1:event_cutoff))';
-                        
-                        % how do these estimates look over time?
-                        figure(303);clf
-                        scatter(xdf_trig_pc1.time_stamps(1:event_cutoff),pc1_boot_ests(1:event_cutoff))
-                        title([pID ' estimation of boot time PC1'], 'interpreter','none')
-                        xlabel('rel timestamp (PC1)'); ylabel('estimate boot time')
-                        
-                        %  Any variability in these estimates indicates the logging and LSL
-                        %  timestamp functions are not getting the same clocktime as one another.
-                        %
-                        %  which estimate should we use for PC1 boot time?
-                        %  -- I'd say the one derived from the earliest trigger event
-                        %  we could actually extrapolate this back in time to timestamp (PC1) ==0 if it looks like a
-                        %  simple function, or take an average over several early events
-                        
-                        % % 1. earliest estimate
-                        % pc1_boot_abs = pc1_boot_ests(1);
-                        % 2. average over earliest n estimates
-                        pc1_boot_abs = mean(pc1_boot_ests(1:event_cutoff));
-                        % % 3. linear fit (check that the fn looks linear... you ma ywish to choose event_cutoff wisely here)
-                        %         pc1_boot_fn = polyfit(xdf_trig_pc1.time_stamps(1:event_cutoff),seconds(pc1_boot_ests-min(pc1_boot_ests)),1);
-                        %         figure(303);hold on;
-                        %         x=linspace(0,max(xdf_trig_pc1.time_stamps),100);
-                        %         plot(x,seconds(x*pc1_boot_fn(1)+pc1_boot_fn(2))+min(pc1_boot_ests))
-                        %         pc1_boot_abs = pc1_boot_fn(2)+min(pc1_boot_ests);
-                        
-                        
-                        %% Estimate PC2 absolute boot time
-                        % we know the offset between pc1 boot and pc2 boot for each sync - this is
-                        % the clock_offset!
-                        % This does seem light a tight linear relationship so let's extrapolate
-                        % this back in time to pc2 rel ==0
-                        
-                        % 1. get lags in terms of PC2 time
-                        all_offset_tpc2 = all_offset_tpc1+all_offset_val;
-                        % 2. fit linear func
-                        offset_fn_tpc2 = polyfit(all_offset_tpc2, all_offset_tpc1,1);
-                        
-                        x=linspace(0,max(all_offset_tpc2),5);
-                        figure(69);clf; scatter(all_offset_tpc2, all_offset_tpc1);
-                        hold on; plot(x,x*offset_fn_tpc2(1)+offset_fn_tpc2(2))
-                        % 3. extrapolate back to time (PC2) ==0
-                        pc2_boot_abs = pc1_boot_abs + seconds(offset_fn_tpc2(2));
-                        title([pID ' extrapolate back to boot time PC2'],'interpreter','none')
-                        xlabel('timestamp (PC2)'); ylabel('timestamp (PC1)')
-                        
-                        %% Get EEG start time in other formats. Add this to the 0-based indexing of EEG timestamps to get it in that format
-                        if ~isempty(eeg_start_pc2abs)
-                            
-                            eeg_start_pc2rel = seconds(eeg_start_pc2abs-pc2_boot_abs);
-                            eeg_start_pc1rel = offset_fn_tpc2(1)*eeg_start_pc2rel + offset_fn_tpc2(2);
-                            eeg_start_pc1abs = seconds(eeg_start_pc1rel)+pc1_boot_abs;
-                            eeg_start_pc1abs.Format=('yyyy-MM-dd HH:mm:ss.SSSSSS');
-                        end
-                        if ~isempty(eegSD_start_pc2abs)
-                            eegSD_start_pc2rel = seconds(eegSD_start_pc2abs-pc2_boot_abs);
-                            eegSD_start_pc1rel = offset_fn_tpc2(1)*eegSD_start_pc2rel + offset_fn_tpc2(2);
-                            eegSD_start_pc1abs = seconds(eegSD_start_pc1rel)+pc1_boot_abs;
-                            eegSD_start_pc1abs.Format=('yyyy-MM-dd HH:mm:ss.SSSSSS');
-                        end
-                        %% Estimate EEG sample for each logged event
-                        % LSL alignment disgnostics
-                        EEGtiminfo(s).lsl_lag_log_range = lsl_lag_log_range;
 
-                        if ~isempty(eeg_start_pc2abs)
-                            logtrig.eeg_sample_est = round(milliseconds(logtrig.datetime - eeg_start_pc1abs));
-                            disp('estimated EEG-streamed sample number via LSL hacking')
-                        end
-                        if ~isempty(eegSD_start_pc2abs)
-                            logtrig.eegSD_sample_est =  round(milliseconds(logtrig.datetime - eegSD_start_pc1abs));
-                            disp('estimated EEG-SD sample number via LSL hacking')
-                            
-                        end
-                        %         end
-                        %         end
-                        %% store diagnistics
-                        EEGtiminfo(s).eeg_start_pc1abs = eeg_start_pc1abs;
-                        EEGtiminfo(s).eeg_start_pc2abs = eeg_start_pc2abs;
-                        EEGtiminfo(s).eeg_start_discrepancy = seconds(eeg_start_pc2abs - eeg_start_pc1abs);
-                        EEGtiminfo(s).SD_lag_BV_mean = nanmean(logtrig.SD_lag_BV);
-                        EEGtiminfo(s).SD_lag_BV_range = range(logtrig.SD_lag_BV); % there will be a lot of jitter if there are missed samples in the streamed file!
-                        EEGtiminfo(s).EEG_lag_log =nanmean(logtrig.EEG_lag_log );% there will be a lot of jitter if there are missed samples in the streamed file!
-                        EEGtiminfo(s).EEG_lag_log_range =range(logtrig.EEG_lag_log );% there will be a lot of jitter if there are missed samples in the streamed file!
+                end
+                % select the trigger stream
+                trig_ix = find(strcmp(cellfun(@(sas) sas.info.name, xdf_unsync,'uni',false),{'eyeLink_trigger'}));
+                if isempty(trig_ix)
+                    disp('No LSL stream named eyeLink_trigger. Will skip participant. ')
+                    disp('Maybe in a future iteration of this script someone may have implemented very approximate timing using NIRStar trig.')
+                else
+                    xdf_trig_pc1 = xdf_sync{trig_ix};
+                    xdf_trig_pc2 = xdf_unsync{trig_ix};
+                    
+                    eeg_ix = find(contains(cellfun(@(sas) sas.info.name, xdf_sync,'uni',false),{'EEG'}));
+                    eeg_lsl_exists = ~isempty(eeg_ix);
+                    %         if eeg_lsl_exists
+                    %             % use lsl eeg
+                    %         else
+                    %% get the clock offset from the xdf
+                    % this is offset between boot times not between absolute times.
+                    try
+                        all_offset_tpc1 = str2double({cell2mat(xdf_trig_pc1.info.clock_offsets.offset).time})';
+                        all_offset_val = str2double({cell2mat(xdf_trig_pc1.info.clock_offsets.offset).value})'; % note this is pc2 time minus pc1
+                    catch
+                        disp('No clock offset recorded - alignment of EEG to log is not currently possible.')
+                        disp('If EEG timeseries was recorded over LSL you could use that but it will be unreliable.')
                         
-                        disp(newline)
-                        disp(EEGtiminfo(s))
+                        disp('This EEG data is unusable - skipping.')
                         diary off
-                        end
+                        continue
                     end
+                    mean_offset = mean(all_offset_val); % in sec
+                    range_offset = range(all_offset_val); % in sec
+                    resid_offset = all_offset_val - mean_offset; % in sec, will use later to fine tune timings
+                    figure(99); clf
+                    scatter(all_offset_tpc1,all_offset_val,'.')
+                    xlabel('time (s since PC2 boot)')
+                    ylabel('offset (boot time PC2 - PC1)')
+                    title([pID ' LSL clock offsets'], 'interpreter','none')
+                    
+                    %% COmpare log and LSL timestamps
+                    figure(22);clf
+                    plot(logtrig.datetime(1:min([length(xdf_trig_pc1.time_stamps) height(logtrig)])),...
+                        xdf_trig_pc2.time_stamps(1:min([length(xdf_trig_pc1.time_stamps) height(logtrig)])),'o' )
+                    title([pID ' triallog vs LSL triggers'], 'interpreter','none')
+                    xlabel('log timestamp')
+                    ylabel('LSL timestamp')
+                    lsl_lag_log_range = milliseconds(range(logtrig.datetime(1:min([length(xdf_trig_pc1.time_stamps) height(logtrig)])) - ...
+                        seconds(xdf_trig_pc2.time_stamps(1:min([length(xdf_trig_pc1.time_stamps) height(logtrig)])))'));
+                    %% Estimate PC1 absolute boot time
+                    % subtract the LSL triggers uncorrected timestamps from the log
+                    % timestamps, should all be the same or v similar
+                    % note there are some weird delays introduced later in the session
+                    % where lsl timestamps lag behind the log, so only take events upt o
+                    % event_cutoff
+                    event_cutoff = 25; % use earliest n events (later ones may have mroe drift)
+                    pc1_boot_ests = logtrig.datetime(1:event_cutoff) - ...
+                        seconds(xdf_trig_pc2.time_stamps(1:event_cutoff))';
+                    
+                    % how do these estimates look over time?
+                    figure(303);clf
+                    scatter(xdf_trig_pc1.time_stamps(1:event_cutoff),pc1_boot_ests(1:event_cutoff))
+                    title([pID ' estimation of boot time PC1'], 'interpreter','none')
+                    xlabel('rel timestamp (PC1)'); ylabel('estimate boot time')
+                    
+                    %  Any variability in these estimates indicates the logging and LSL
+                    %  timestamp functions are not getting the same clocktime as one another.
+                    %
+                    %  which estimate should we use for PC1 boot time?
+                    %  -- I'd say the one derived from the earliest trigger event
+                    %  we could actually extrapolate this back in time to timestamp (PC1) ==0 if it looks like a
+                    %  simple function, or take an average over several early events
+                    
+                    % % 1. earliest estimate
+                    % pc1_boot_abs = pc1_boot_ests(1);
+                    % 2. average over earliest n estimates
+                    pc1_boot_abs = mean(pc1_boot_ests(1:event_cutoff));
+                    % % 3. linear fit (check that the fn looks linear... you ma ywish to choose event_cutoff wisely here)
+                    %         pc1_boot_fn = polyfit(xdf_trig_pc1.time_stamps(1:event_cutoff),seconds(pc1_boot_ests-min(pc1_boot_ests)),1);
+                    %         figure(303);hold on;
+                    %         x=linspace(0,max(xdf_trig_pc1.time_stamps),100);
+                    %         plot(x,seconds(x*pc1_boot_fn(1)+pc1_boot_fn(2))+min(pc1_boot_ests))
+                    %         pc1_boot_abs = pc1_boot_fn(2)+min(pc1_boot_ests);
+                    
+                    
+                    %% Estimate PC2 absolute boot time
+                    % we know the offset between pc1 boot and pc2 boot for each sync - this is
+                    % the clock_offset!
+                    % This does seem light a tight linear relationship so let's extrapolate
+                    % this back in time to pc2 rel ==0
+                    
+                    % 1. get lags in terms of PC2 time
+                    all_offset_tpc2 = all_offset_tpc1+all_offset_val;
+                    % 2. fit linear func
+                    offset_fn_tpc2 = polyfit(all_offset_tpc2, all_offset_tpc1,1);
+                    
+                    x=linspace(0,max(all_offset_tpc2),5);
+                    figure(69);clf; scatter(all_offset_tpc2, all_offset_tpc1);
+                    hold on; plot(x,x*offset_fn_tpc2(1)+offset_fn_tpc2(2))
+                    % 3. extrapolate back to time (PC2) ==0
+                    pc2_boot_abs = pc1_boot_abs + seconds(offset_fn_tpc2(2));
+                    title([pID ' extrapolate back to boot time PC2'],'interpreter','none')
+                    xlabel('timestamp (PC2)'); ylabel('timestamp (PC1)')
+                    
+                    %% Get EEG start time in other formats. Add this to the 0-based indexing of EEG timestamps to get it in that format
+                    if ~isempty(eeg_start_pc2abs)
+                        
+                        eeg_start_pc2rel = seconds(eeg_start_pc2abs-pc2_boot_abs);
+                        eeg_start_pc1rel = offset_fn_tpc2(1)*eeg_start_pc2rel + offset_fn_tpc2(2);
+                        eeg_start_pc1abs = seconds(eeg_start_pc1rel)+pc1_boot_abs;
+                        eeg_start_pc1abs.Format=('yyyy-MM-dd HH:mm:ss.SSSSSS');
+                    end
+                    if ~isempty(eegSD_start_pc2abs)
+                        eegSD_start_pc2rel = seconds(eegSD_start_pc2abs-pc2_boot_abs);
+                        eegSD_start_pc1rel = offset_fn_tpc2(1)*eegSD_start_pc2rel + offset_fn_tpc2(2);
+                        eegSD_start_pc1abs = seconds(eegSD_start_pc1rel)+pc1_boot_abs;
+                        eegSD_start_pc1abs.Format=('yyyy-MM-dd HH:mm:ss.SSSSSS');
+                    end
+                    %% Estimate EEG sample for each logged event
+                    % LSL alignment disgnostics
+                    EEGtiminfo(s).lsl_lag_log_range = lsl_lag_log_range;
+                    %         if lsl_lag_log_range > 1000
+                    %             disp(['WARNING: LSL and log have inconsistent timing with a jitter of ' num2str(lsl_lag_log_range) 'ms'])
+                    %             disp('You should discard this subject from analysis.')
+                    %             diary off
+                    %
+                    %             continue
+                    %         else
+                    if ~isempty(eeg_start_pc2abs)
+                        logtrig.eeg_sample_est = round(milliseconds(logtrig.datetime - eeg_start_pc1abs));
+                        disp('estimated EEG-streamed sample number via LSL hacking')
+                    end
+                    if ~isempty(eegSD_start_pc2abs)
+                        logtrig.eegSD_sample_est =  round(milliseconds(logtrig.datetime - eegSD_start_pc1abs));
+                        disp('estimated EEG-SD sample number via LSL hacking')
+                        
+                    end
+                    %         end
+                    %         end
+                    %% store diagnistics
+                    EEGtiminfo(s).eeg_start_pc1abs = eeg_start_pc1abs;
+                    EEGtiminfo(s).eeg_start_pc2abs = eeg_start_pc2abs;
+                    EEGtiminfo(s).eeg_start_discrepancy = seconds(eeg_start_pc2abs - eeg_start_pc1abs);
+                    EEGtiminfo(s).SD_lag_BV_mean = nanmean(logtrig.SD_lag_BV);
+                    EEGtiminfo(s).SD_lag_BV_range = range(logtrig.SD_lag_BV); % there will be a lot of jitter if there are missed samples in the streamed file!
+                    EEGtiminfo(s).EEG_lag_log =nanmean(logtrig.EEG_lag_log );% there will be a lot of jitter if there are missed samples in the streamed file!
+                    EEGtiminfo(s).EEG_lag_log_range =range(logtrig.EEG_lag_log );% there will be a lot of jitter if there are missed samples in the streamed file!
+                    
+                    disp(newline)
+                    disp(EEGtiminfo(s))
+                    diary off
                 end
                 
             end
@@ -529,7 +526,7 @@ for s = 1:length(sublist)
     %% %%%%%%%%%%%%%% EYE DATA %%%%%%%%%%%
     % NOTE: if you are reusing this script for a different dataset, check
     % your eyetracker and EEG are at same sample frequency, otherwise you
-    % will have to resample one or the other.
+    % will have to resample one.
     msgfiles = dir(fullfile(datapath,pID,'Unpacked','*Message.csv'));
     messages=[];
     if isempty(msgfiles)
@@ -599,7 +596,7 @@ for s = 1:length(sublist)
                 
                 
                 % convert timestamp to proper datetime type
-                this_tri.nirs_datetime=strrep(this_tri.nirs_datetime,'T',' '); % not needed for r2021a+
+                %this_tri.nirs_datetime=strrep(this_tri.nirs_datetime,'T',' ');
                 this_tri.nirs_datetime = datetime(this_tri.nirs_datetime,'InputFormat','yyyy-MM-dd HH:mm:ss.SSSSSS','Format','yyyy-MM-dd HH:mm:ss.SSSSSS');
                 this_tri.nirs_file_no = repmat(ff,height(this_tri),1);
                 this_tri.nirs_file = repmat({fnirs_files(ff).name},height(this_tri),1);
@@ -732,9 +729,9 @@ for s = 1:length(sublist)
     % TODO get timestamps for these null events / find a way to align them
     % by order as their identifier is not unique
     
+
     
-    
-    
+   
     %% tidy up table manually for specific participants
     % remove duplicate Hypotheses0 for EML1_136 - caused due to experiment
     % restart
@@ -759,41 +756,32 @@ for s = 1:length(sublist)
     
     %% join behavioural data to logtrig
     logtrig = sortrows(outerjoin(logtrig, thisbeh, 'Keys','EVENT','Type','left'),'datetime');
-    try
-         logtrig=renamevars(logtrig, 'EVENT_logtrig','EVENT' );
-    catch
-    end
-    try
-       logtrig=removevars(logtrig, 'EVENT_thisbeh');
-    catch
-    end
-    
-    % if responseTime.sec is missing (i.e. was not present in the behavioural data) , use duration to next event
-    logtrig.duration_sec = logtrig.responseTime_sec;
+%     logtrig=renamevars(logtrig, 'EVENT_logtrig','EVENT' );
+%     logtrig=removevars(logtrig, 'EVENT_thisbeh');
+     
+     % if responseTime.sec is missing (i.e. was not present in the behavioural data) , use duration to next event 
+     logtrig.duration_sec = logtrig.responseTime_sec;
     diffs = seconds(diff([logtrig.datetime; logtrig.datetime(end)]));
     logtrig.duration_sec(isnan( logtrig.duration_sec)) = diffs(isnan( logtrig.duration_sec));
     
-    % get UNIX timestamp equivalent of log time (will be used for Shimmer)
-    logtrig.datetime.TimeZone = 'America/Denver';
-    format longG
+        % get UNIX timestamp equivalent of log time (will be used for Shimmer)
+        logtrig.datetime.TimeZone = 'America/Denver';
+        format longG
     logtrig.unix_start = posixtime(logtrig.datetime);
     logtrig.unix_end =  logtrig.unix_start + logtrig.duration_sec;
     
     
     %% write updated event log
     writetable(logtrig,fullfile(datapath, pID,[pID '_events.csv']))
-        if copy_to_dropbox
-            disp('copying events file to Dropbox')
-           try
-                writetable(logtrig,fullfile(dropboxpath, [pID '_events.csv']))
-           catch
-               load gong 
-    sound(y,Fs)
-               disp('- couldn''t copy events file to Dropbox, check you have the folder set to "local"')
-               pause(5)
-           end
-    
-        end
+%     if copy_to_dropbox
+%         disp('copying events file to Dropbox')
+%        % try
+%             writetable(logtrig,fullfile(dropboxpath, pID,[pID '_events.csv']))
+%      %   catch
+%      %       disp('- couldn''t copy events file to Dropbox')
+%      %   end
+% 
+%     end
     %% clear some vars
     clear xdf_unsync xdf_sync logtrig
     clear logtrig eeg_hardtrig eegSD_hardtrig eeg_start eeg_start_pc1abs eeg_start_pc2abs

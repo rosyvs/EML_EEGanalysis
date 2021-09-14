@@ -19,142 +19,116 @@ clear all; close all
 eeglab nogui % sets path defaults
 % use only file w reliable trigger
 hasTriggerList =readtable('triggerSources.csv');
-sublist = find(hasTriggerList.sdcard==1);
-sublist = 60:70
-exclude = [20, 21,22, 26,73, 77]; % Subj to exclude because no eeg or no trigger etc
-sublist = sublist(~ismember(sublist,exclude));
+sublist = [60:61];
+exclude = [20:26, 54, 73, 77]; % Subj to exclude because no eeg or no trigger etc. 54 i fixable - check message file 6
+sublist = sublist(~ismember(sublist,exclude) & ismember(sublist,find(hasTriggerList.sdcard==1)));
 
-dir_raw = '/Volumes/Blue1TB/EyeMindLink/Data';
 dir_pre = fullfile('..','..','Data','EEG_processed') ;
+dir_in = fullfile(dir_pre, 'preprocessed_set');
 mkdir( dir_pre, 'opticat_cleaned')
+
+h_compfig=figure('name','components');
+h1=figure('name','Saccade-related potentials before and after OPTICAT-ICA');
+h2=figure('name','Fixation-related potentials before and after OPTICAT-ICA');
+h3=figure('name','Blink-related potentials before and after OPTICAT-ICA');
+
+
 for s = 1:length(sublist)
-    close all
+    
     tic;
-    pID = ['EML1_',sprintf('%03d',sublist(s))];    
+    pID = ['EML1_',sprintf('%03d',sublist(s))];
     
-    % use Fieldtrip to load fif data from MNE (TODO can EEGlab read fif
-    % directly??)
-    cfg = [];
-    cfg.dataset = fullfile(dir_pre, [pID '_p.fif']);
-    EEG_ft = ft_preprocessing(cfg);
+    %     % use Fieldtrip to load fif data from MNE (TODO can EEGlab read fif
+    %     % directly??)
+    %     cfg = [];
+    %     cfg.dataset = fullfile(dir_fif, [pID '_p.fif']);
+    %     EEG_ft = ft_preprocessing(cfg);
     
-    % Read info txt to determine whether EEG+triggers are from SD card
-    % (default) or streamed (backup)
-    triginfo = readtxtfile(fullfile(dir_pre, [pID '-info.txt']));
+    EEG = pop_loadset([pID '.set'], dir_in);
     
-    % read events.csv for triggers and descriptions
-    logtrig = readtable(fullfile(dir_raw,pID,'EEG','events.csv'));
-    % copy the correct EEGsample column for use depending on triginfo
-    if contains(triginfo, 'LA0','IgnoreCase',false)
-        logtrig.eeg_use_sample = logtrig.eegSD_sample_est;
-    else
-        logtrig.eeg_use_sample = logtrig.eeg_sample_est;
-    end
-    %% read eyetracker events
-    eye_srate=1000; % Hz sampling rate of eyetracker data
-    blinkfiles = dir(fullfile(dir_raw,pID,'Unpacked','*Blink.csv'));
-    blinks=[];
-    for i = 1:length(blinkfiles)
-        blinks =  [blinks;...
-            readtable(fullfile(dir_raw,pID,'Unpacked',blinkfiles(i).name))];
-    end
-    
-    saccfiles = dir(fullfile(dir_raw,pID,'Unpacked','*Saccade.csv'));
-    saccades=[];
-    for i = 1:length(saccfiles)
-        saccades =  [saccades;...
-            readtable(fullfile(dir_raw,pID,'Unpacked',saccfiles(i).name))];
-    end
-    
-    fixfiles = dir(fullfile(dir_raw,pID,'Unpacked','*Fixation.csv'));
-    fixations = [];
-    for i = 1:length(fixfiles)
-        fixations = [fixations;...
-            readtable(fullfile(dir_raw,pID,'Unpacked',fixfiles(i).name))];
-    end
-    % drop extreme fixations
-    fixations = fixations(fixations.duration>100 & fixations.duration<1000,:);
-    
-    
-    msgfiles = dir(fullfile(dir_raw,pID,'Unpacked','*Message.csv'));
-    messages=[];
-    for i = 1:length(msgfiles)
-        messages =  [messages;...
-            readtable(fullfile(dir_raw,pID,'Unpacked',msgfiles(i).name))];
-    end
-    
-    %% get eyetracker timestamp rel to eeg timestamp by matching log to ET messages
-    % warning: this is messed up for subjects  33, 55, 56, 57, 58, 70
-    % because the coutner went back to 0 for eyelink samples. ask Megan for
-    % fixed. 
-    
-    messages_trialonsets = messages(contains(messages.text,'TRIALID ') & ~contains(messages.text,{'DriftCorrect','Recal'}),:);
-    %logtrig_trialonsets = logtrig(~contains(logtrig.EVENT, {'DriftCorrect','Recal'}),:)
-    logtrig.eye_sample = NaN(height(logtrig),1);
-    % for each eyetracker message, find its corresponding row in logtrig
-    for i = 1:height(messages_trialonsets)
-        event = messages_trialonsets.text{i}; event=event(9:end); % remove 'TRIALID '
-        log_ix = find(matches(logtrig.EVENT,event));
-        eye_sample = messages_trialonsets.time(i) ;
-        temp(i) = length(log_ix);
-
-        if temp(i) > 1
-            warning(['multiple log entries found for eyetracker message ' event]);
-            % TODO find a way to sensibly choose in case of duplicates
-           %  log_ix = log_ix(logtrig.eye_sample() > messages_trialonsets(i-1)); 
-           log_ix=log_ix(end); % most likely the exp was started falsely once and the earlier one(s) should be discarded
-        end
-        if isempty(log_ix)
-            warning(['No log event matches eyetracker message: ' event])
-        else
-            logtrig.eye_sample(log_ix) = eye_sample;
-
-        end
-      
-    end
-    % check eyetracker vs log timing jitter
-    logtrig.eye_diff_since_last = [0; diff(logtrig.eye_sample)];
-    eye_log_jitter = range(logtrig.diff_since_last - logtrig.eye_diff_since_last);
-    % check EEG vs log timing jitter - remember we take the SD card
-    % recording over the streamed recording
-    logtrig.eeg_use_diff_since_last = [0; diff(logtrig.eeg_use_sample)];
-    eeg_log_jitter = range(logtrig.diff_since_last - logtrig.eeg_use_diff_since_last);
-
-    
-    
-    %% task events into event structure
-    % type, latency,duration
-    task_events = logtrig(:,{'EVENT','eeg_use_sample'});
-    task_events = renamevars(task_events,{'EVENT','eeg_use_sample'},{'type','latency'});
-   
-    %% interpolate all eye event timestamps to get closest eeg sample
-    % first select rows with non-NaN values for both eeg and eyetracker samples
-    ix = ~isnan(logtrig.eye_sample + logtrig.eeg_use_sample);
-    F = griddedInterpolant(logtrig.eye_sample(ix), logtrig.eeg_use_sample(ix), 'spline');
-    % plot interpolant: this should be a straight line and the red points shold
-    % be on the line
-    h0=figure();
-    plot(min(F.GridVectors{1,1}):max(F.GridVectors{1,1}),F(min(F.GridVectors{1,1}):max(F.GridVectors{1,1})))
-    hold on
-    plot(logtrig.eye_sample(ix), logtrig.eeg_use_sample(ix),'ro')
-    xlabel('eyetracker sample')
-    ylabel('EEG sample')
-    
-    saveas(h0, fullfile(dir_pre, 'opticat_cleaned', [pID, '_eeg-eye_sample_interpolant.png']))
-    
-    blinks.eeg_tStart = round(F(blinks.tStart));
-    saccades.eeg_tStart = round(F(saccades.tStart));
-    fixations.eeg_tStart = round(F(fixations.tStart));
-    
-     %%%% TODO
-    % choice of eye to use - earliest event? both? best tracked eye?
-    %% TODO resample ET durations
-    
-    %% convert to EEGLAB to use OPTICAT
-    EEG = fieldtrip2eeglab(EEG_ft.hdr, EEG_ft.trial{1});
-    EEG = pop_select(EEG,'nochannel',{'x_dir','y_dir','z_dir'});
-    % note data units appears to be V here. EEGlab expects microvolt
-    EEG.data = EEG.data*10e6; % convert V to uV
+    %     % Read info txt to determine whether EEG+triggers are from SD card
+    %     % (default) or streamed (backup)
+    %     triginfo = readtxtfile(fullfile(dir_fif, [pID '-info.txt']));
+    %
+    %     % read events.csv for triggers and descriptions
+    %     logtrig = readtable(fullfile(dir_raw,pID,[pID '_events.csv']));
+    %     % copy the correct EEGsample column for use depending on triginfo
+    %     if contains(triginfo, 'LA0','IgnoreCase',false)
+    %         logtrig.eeg_use_sample = logtrig.eegSD_sample_est;
+    %     else
+    %         logtrig.eeg_use_sample = logtrig.eeg_sample_est;
+    %     end
+    %     %% read eyetracker events
+    %     eye_srate=1000; % Hz sampling rate of eyetracker data
+    %     blinkfiles = dir(fullfile(dir_raw,pID,'Unpacked','*Blink.csv'));
+    %     blinks=[];
+    %     for i = 1:length(blinkfiles)
+    %         blinks =  [blinks;...
+    %             readtable(fullfile(dir_raw,pID,'Unpacked',blinkfiles(i).name))];
+    %     end
+    %
+    %     saccfiles = dir(fullfile(dir_raw,pID,'Unpacked','*Saccade.csv'));
+    %     saccades=[];
+    %     for i = 1:length(saccfiles)
+    %         saccades =  [saccades;...
+    %             readtable(fullfile(dir_raw,pID,'Unpacked',saccfiles(i).name))];
+    %     end
+    %
+    %     fixfiles = dir(fullfile(dir_raw,pID,'Unpacked','*Fixation.csv'));
+    %     fixations = [];
+    %     for i = 1:length(fixfiles)
+    %         fixations = [fixations;...
+    %             readtable(fullfile(dir_raw,pID,'Unpacked',fixfiles(i).name))];
+    %     end
+    %     % drop extreme fixations
+    %     fixations = fixations(fixations.duration>100 & fixations.duration<1000,:);
+    %
+    %
+    %     msgfiles = dir(fullfile(dir_raw,pID,'Unpacked','*Message.csv'));
+    %     messages=[];
+    %     for i = 1:length(msgfiles)
+    %         messages =  [messages;...
+    %             readtable(fullfile(dir_raw,pID,'Unpacked',msgfiles(i).name))];
+    %     end
+    %
+    %     %% task events into event structure
+    %     % type, latency,duration
+    %     task_events = logtrig(:,{'EVENT','eeg_use_sample'});
+    %     task_events = renamevars(task_events,{'EVENT','eeg_use_sample'},{'type','latency'});
+    %
+    %     %% interpolate all eye event timestamps to get closest eeg sample
+    %     % first select rows with non-NaN values for both eeg and eyetracker samples
+    %     ix = find(~isnan(logtrig.eye_sample + logtrig.eeg_use_sample));
+    %     % remove any duplicated values (occasionally an issue)
+    %     [eye_samp, eye_ix] = unique(logtrig.eye_sample(ix)) ;
+    %         [eeg_samp, eeg_ix] = unique(logtrig.eeg_use_sample(ix)) ;
+    %     ix = ix(eye_ix & eeg_ix);
+    %
+    %     F = griddedInterpolant(logtrig.eye_sample(ix), logtrig.eeg_use_sample(ix), 'spline');
+    %     % plot interpolant: this should be a straight line and the red points shold
+    %     % be on the line
+    % % change_current_figure(h0)
+    % %     plot(min(F.GridVectors{1,1}):max(F.GridVectors{1,1}),F(min(F.GridVectors{1,1}):max(F.GridVectors{1,1})))
+    % %     hold on
+    % %     plot(logtrig.eye_sample(ix), logtrig.eeg_use_sample(ix),'ro')
+    % %     xlabel('eyetracker sample')
+    % %     ylabel('EEG sample')
+    % %
+    % %     saveas(h0, fullfile(dir_pre, 'opticat_cleaned', [pID, '_eeg-eye_sample_interpolant.png']))
+    % %
+    %     blinks.eeg_tStart = round(F(blinks.tStart));
+    %     saccades.eeg_tStart = round(F(saccades.tStart));
+    %     fixations.eeg_tStart = round(F(fixations.tStart));
+    %
+    %      %%%% TODO
+    %     % choice of eye to use - earliest event? both? best tracked eye?
+    %     %% TODO resample ET durations
+    %
+    %     %% convert to EEGLAB to use OPTICAT
+    %  %   EEG = fieldtrip2eeglab(EEG_ft.hdr, EEG_ft.trial{1});
+    %     EEG = pop_select(EEG,'nochannel',{'x_dir','y_dir','z_dir'});
+    %     % note data units appears to be V here. EEGlab expects microvolt
+    % EEG.data = EEG.data*10e6; % convert V to uV
     
     EEG_copy = EEG; % make a copy of the pre-cleaned data for comparison
     
@@ -174,24 +148,24 @@ for s = 1:length(sublist)
     eeg_channels = 1:8; % use all 8 EEG channels - the other 3 are accelerometer
     
     
-    %% Add eye events to EEGlab event structure
-    blinks.type =  repmat({'blink_either_eye'},height(blinks),1);
-    blinks.latency = blinks.eeg_tStart;
-    
-    fixations.type = repmat({'fixation_either_eye'},height(fixations),1);
-    fixations.latency = fixations.eeg_tStart;
-    
-    saccades.type = repmat({'saccade_either_eye'},height(saccades),1);
-    saccades.latency = saccades.eeg_tStart;
-    
-    ev_fields = {'type','latency','duration'};
-    eye_events = [blinks(:,ev_fields); fixations(:,ev_fields); saccades(:,ev_fields)];
-    eye_events = sortrows(eye_events,'latency');
-    % truncate at end of eeg recording
-    eye_events = eye_events(eye_events.latency+eye_events.duration <= EEG.pnts,:);
-    
-    EEG.event = table2struct(eye_events);
-    EEG_copy.event = table2struct(eye_events);
+    %     %% Add eye events to EEGlab event structure
+    %     blinks.type =  repmat({'blink_either_eye'},height(blinks),1);
+    %     blinks.latency = blinks.eeg_tStart;
+    %
+    %     fixations.type = repmat({'fixation_either_eye'},height(fixations),1);
+    %     fixations.latency = fixations.eeg_tStart;
+    %
+    %     saccades.type = repmat({'saccade_either_eye'},height(saccades),1);
+    %     saccades.latency = saccades.eeg_tStart;
+    %
+    %     ev_fields = {'type','latency','duration'};
+    %     eye_events = [blinks(:,ev_fields); fixations(:,ev_fields); saccades(:,ev_fields)];
+    %     eye_events = sortrows(eye_events,'latency');
+    %     % truncate at end of eeg recording
+    %     eye_events = eye_events(eye_events.latency+eye_events.duration <= EEG.pnts,:);
+    %
+    %     EEG.event = table2struct(eye_events);
+    %     EEG_copy.event = table2struct(eye_events);
     
     %% Make pseudoepoch event structure
     n_pseudo = floor(EEG.pnts/(opticat_epoch_dur*EEG.srate));
@@ -201,7 +175,7 @@ for s = 1:length(sublist)
     event_pseudo.type =repmat({'pseudo_epoch'}, height(event_pseudo),1);
     event_pseudo.duration = repmat(opticat_epoch_dur*EEG.srate, height(event_pseudo),1);
     
-    event_training = [eye_events; event_pseudo];
+    event_training = [struct2table(EEG.event); event_pseudo];
     event_training = sortrows(event_training, {'latency'});
     
     EEG_training = EEG;
@@ -235,7 +209,7 @@ for s = 1:length(sublist)
     
     %% Run ICA
     fprintf('\nRunning ICA on optimized training data...')
-    EEG_training = pop_runica(EEG_training,'extended',1,'interupt','on','chanind',eeg_channels); % or use binary ICA for more speed
+    EEG_training = pop_runica(EEG_training,'chanind',eeg_channels, 'icatype','fastica'); % or use binary ICA for more speed
     
     % Remember ICA weights & sphering matrix
     wts = EEG_training.icaweights;
@@ -263,32 +237,35 @@ for s = 1:length(sublist)
     PLOTFIG          = true;  % plot a figure visualizing influence of threshold setting?
     ICPLOTMODE       = 0;     % plot component topographies (inverse weights)? (2 = only plot "bad" ocular ICs)
     FLAGMODE         = 3;     % overwrite existing rejection flags? (3 = yes)
-    MAXCOMP = 2; % how many components to remove MAXIMUM? 
+    MAXCOMP = 2; % how many components to remove MAXIMUM?
     
     % Automatically flag ocular ICs (Plöchl et al., 2012)
     [EEG, varratiotable] = pop_eyetrackerica(EEG,'saccade_either_eye','fixation_either_eye',SACC_WINDOW,IC_THRESHOLD,FLAGMODE,PLOTFIG,ICPLOTMODE);
     h=gcf();
     saveas(h, fullfile(dir_pre, 'opticat_cleaned', [pID, '_varratios.png']))
-
+    
     % Remove flagged ocular ICs
     badcomps = EEG.reject.gcompreject;
     % choose max 2 with highest variance
     [vr,worst2comps] = maxk(varratiotable(:,3),MAXCOMP);
     badcomps = intersect(find(badcomps), worst2comps);
     
-    % plot chosen components & remaining components    
-    h_compfig=figure(22); clf
+    % plot chosen components & remaining components
+    change_current_figure(h_compfig)
+    clf
     for ci=1:length(badcomps)
-    subplot(1,MAXCOMP,ci)
-    topoplot(EEG.icawinv(:,badcomps(ci)),EEG.chanlocs, 'verbose', ...
-			      'off', 'chaninfo', EEG.chaninfo, 'numcontour', 8);
-    title(['Component ' num2str(badcomps(ci)) '| Var ratio = ' num2str(varratiotable(badcomps(ci),3))])
+        subplot(1,MAXCOMP,ci)
+        topoplot(EEG.icawinv(:,badcomps(ci)),EEG.chanlocs, 'verbose', ...
+            'off', 'chaninfo', EEG.chaninfo, 'numcontour', 8);
+        title(['Component ' num2str(badcomps(ci)) '| Var ratio = ' num2str(varratiotable(badcomps(ci),3))])
     end
     sgtitle([ pID ' eyeca removed components'],'Interpreter','none')
     saveas(h_compfig, fullfile(dir_pre, 'opticat_cleaned', [pID, '_detected_components.png']))
-
+    
     %% remove bad components
-    EEG      = pop_subcomp(EEG,badcomps); % remove them    
+    EEG      = pop_subcomp(EEG,badcomps); % remove them
+    
+    
     
     %%  Plot SRP + FRP before and after artefact removal
     % Compute saccade-locked ERPs from clean data, then baseline (ugh mixed units - seconds then milliseconds)
@@ -296,8 +273,10 @@ for s = 1:length(sublist)
     epoch_sac = pop_rmbase(pop_epoch(EEG_copy,{'saccade_either_eye'},[-0.2 0.6]),[-200 0]);
     epoch_fix_clean = pop_rmbase(pop_epoch(EEG,{'fixation_either_eye'},[-0.2 0.6]),[-200 0]);
     epoch_fix = pop_rmbase(pop_epoch(EEG_copy,{'fixation_either_eye'},[-0.2 0.6]),[-200 0]);
+    epoch_blink_clean = pop_rmbase(pop_epoch(EEG,{'blink_either_eye'},[-0.2 0.6]),[-200 0]);
+    epoch_blink = pop_rmbase(pop_epoch(EEG_copy,{'blink_either_eye'},[-0.2 0.6]),[-200 0]);
     
-    h1=figure('name','Saccade-related potentials before and after OPTICAT-ICA');
+    change_current_figure(h1)
     subplot(1,2,1)
     plot(epoch_sac_clean.times, mean(epoch_sac_clean.data(eeg_channels,:,:),3))
     ylabel('Saccade-related ERP')
@@ -308,10 +287,19 @@ for s = 1:length(sublist)
     ylabel('Saccade-related ERP')
     xlabel('Time after saccade [ms]')
     title(['clean data - ' num2str(length(badcomps)) ' removed components'])
-    legend({EEG.chanlocs.labels})
+    legend({EEG.chanlocs.labels}, 'Location','northwest')
     set(h1,'Position',[190 340 1200 400])
+    sgtitle('Saccade-related potentials before and after OPTICAT-ICA')
+    linkaxes(get(h1,'children'));
+    saveas(h1, fullfile(dir_pre, 'opticat_cleaned', [pID, '_saccades.png']))
     
-    h2=figure('name','Fixation-related potentials before and after OPTICAT-ICA');
+    % zoom in on saccade
+    set(gca,'XLim',[-20 20]);
+    sgtitle('Saccade spike potentials before and after OPTICAT-ICA')
+    linkaxes(get(h1,'children'));
+    saveas(h1, fullfile(dir_pre, 'opticat_cleaned', [pID, '_saccades_SP.png']))
+    
+    change_current_figure(h2)
     subplot(1,2,1)
     plot(epoch_fix_clean.times, mean(epoch_fix_clean.data(eeg_channels,:,:),3))
     ylabel('Fixation-related ERP')
@@ -322,18 +310,40 @@ for s = 1:length(sublist)
     ylabel('Fixation-related ERP')
     xlabel('Time after fixation [ms]')
     title(['clean data - ' num2str(length(badcomps)) ' removed components'])
-    legend({EEG.chanlocs.labels})
+    legend({EEG.chanlocs.labels}, 'Location','northwest')
     set(h2,'Position',[190 340 1200 400])
-    
-    %% save data and plots
-    saveas(h1, fullfile(dir_pre, 'opticat_cleaned', [pID, '_saccades.png']))
+    sgtitle('Fixation-related potentials before and after OPTICAT-ICA')
+    linkaxes(get(h2,'children'));
     saveas(h2, fullfile(dir_pre, 'opticat_cleaned', [pID, '_fixations.png']))
+    
+    % plot blinks
+    change_current_figure(h3)
+    subplot(1,2,1)
+    plot(epoch_blink_clean.times, mean(epoch_blink_clean.data(eeg_channels,:,:),3))
+    ylabel('Blink ERP')
+    xlabel('Time after blink [ms]')
+    title([pID ': orig data' ], 'Interpreter','none')
+    subplot(1,2,2)
+    plot(epoch_fix.times, mean(epoch_blink.data(eeg_channels,:,:),3))
+    ylabel('Blink ERP')
+    xlabel('Time after blink [ms]')
+    title(['clean data - ' num2str(length(badcomps)) ' removed components'])
+    legend({EEG.chanlocs.labels}, 'Location','northwest')
+    set(h3,'Position',[190 340 1200 400])
+    sgtitle('Blink potentials before and after OPTICAT-ICA')
+    linkaxes(get(h3,'children'));
+    saveas(h3, fullfile(dir_pre, 'opticat_cleaned', [pID, '_blinks.png']))
+    %% save data and plots
+    
+    % save clean
     pop_saveset(EEG, 'filename',pID, 'filepath',fullfile(dir_pre, 'opticat_cleaned'), 'savemode','onefile')
+    %     % save raw
+    %     pop_saveset(EEG_copy, 'filename',pID, 'filepath',fullfile(dir_pre, 'preprocessed_set'), 'savemode','onefile')
     disp(['Done EyeCA for ' pID])
     
-    % Finished ICa for 1 subject! 
-    load train 
+    % Finished ICa for 1 subject!
+    load train
     sound(y,Fs)
-
+    
     toc
 end

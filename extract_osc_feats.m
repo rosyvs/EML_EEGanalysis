@@ -33,21 +33,14 @@ for s = 1:length(sublist)
     pID = ['EML1_',sprintf('%03d',sublist(s))];
     
     %     %% Loading eyeCA cleaned data (Rosy is skeptical about that data)
-    %eeglab nogui % sets path defaults
+    eeglab nogui % sets path defaults
     
-    %     dir_pre = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EML Rosy\Data\EEG_processed\opticat_cleaned\';
-    %
-    %     EEGica = pop_loadset(fullfile(dir_pre, [pID '.set']));
-    %     EEGft = eeglab2fieldtrip(EEGica,'raw','none');
+        dir_pre = 'C:\Users\roso8920\Dropbox (Emotive Computing)\EML Rosy\Data\EEG_processed\opticat_cleaned\';
     
-    %% Loading basic preprocessed data from mne-python
-    cfg = [];
-    cfg.dataset = fullfile(dir_pre, [pID '_p.fif']);
-    EEGft = ft_preprocessing(cfg);
-    % note that MNE-py uses Volt but Fieldtrip generally uses uV.
-    EEGft.trial{1} = EEGft.trial{1}*1000000;
-    EEGft.elec.chanunit=repmat({'uV'},length(EEGft.elec.chanunit),1);
+        EEGica = pop_loadset(fullfile(dir_pre, [pID '.set']));
+        EEGft = eeglab2fieldtrip(EEGica,'raw','none');
     
+   
     % eeg channels
     eegchannels=ft_channelselection({'all','-x_dir','-y_dir','-z_dir'},EEGft.label);
     % remove xyz accelerometer
@@ -61,7 +54,7 @@ for s = 1:length(sublist)
     fileinfo = readtxtfile(fullfile(dir_info, [pID '-info.txt']));
     
     % read events.csv for triggers and descriptions
-    logtrig = readtable(fullfile(dir_raw,pID,'EEG','events.csv'));
+    logtrig = readtable(fullfile(dir_raw,pID,[pID '_events.csv']));
     % copy the correct EEGsample column for use depending on triginfo
     if contains(fileinfo, 'LA0','IgnoreCase',false)
         logtrig.eeg_use_sample = logtrig.eegSD_sample_est;
