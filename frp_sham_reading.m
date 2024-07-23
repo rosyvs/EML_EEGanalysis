@@ -7,28 +7,25 @@ clear all; close all
 eeglab nogui % sets path defaults
 
 %%%%%%%%%%%
-
+% redo indivodual subject epoching etc? (time consuming)
 do_processing = 1;
 %%%%%%%%%%%
 
 
 % use only file w reliable trigger
 hasTriggerList =readtable('triggerSources.csv');
-sublist = [100];
+sublist = [19:59 101:166];
 exclude = [20:26, 54, 73, 77]; % Subj to exclude because no eeg or no trigger etc. 54 i fixable - check message file 6
 sublist = sublist(~ismember(sublist,exclude) & ismember(sublist,find(hasTriggerList.sdcard==1)));
 
-dir_events = '/Volumes/Blue1TB/EyeMindLink/Proessed/events/';
+dir_events = '~/Dropbox (Emotive Computing)/EyeMindLink/Processed/events/';
 dir_pre = fullfile('..','..','Data','EEG_processed') ;
-dir_in = fullfile(dir_pre, 'preprocessed_set');
+preprotype = 'no overlap correction';
+dir_in = fullfile(dir_pre, 'EEG_processed');
 dir_fif = fullfile(dir_pre, 'preprocessed_fif');
 
-h_compfig=figure('name','components');
-h1=figure('name','Saccade-related potentials before and after OPTICAT-ICA');
-h2=figure('name','Fixation-related potentials before and after OPTICAT-ICA');
-h3=figure('name','Blink-related potentials before and after OPTICAT-ICA');
 
-analysis = 'FRP_reading_sham';
+analysis = 'FRP_reading_sham_OPTICAT';
 mkdir( dir_pre, analysis)
 mkdir(fullfile(dir_pre, analysis, 'subavg'))
 commands = {};
@@ -42,6 +39,7 @@ if do_processing
         EEG = pop_loadset([pID '.set'], dir_in);
         events = struct2table(EEG.event);
         eye_events = events(contains(events.type, 'eye'),:);
+        
         %% info
         % Read info txt to determine whether EEG+triggers are from SD card
         % (default) or streamed (backup)
@@ -57,8 +55,8 @@ if do_processing
         end
         
         %% make new event structure with fixations by reading vs sham
-        task_events = logtrig(:,{'EVENT_logtrig','VAL','eeg_use_sample','duration_sec'});
-        task_events = renamevars(task_events,{'EVENT_logtrig','eeg_use_sample','duration_sec'},{'type','latency','duration'});
+        task_events = logtrig(:,{'EVENT','VAL','eeg_use_sample','duration_sec'});
+        task_events = renamevars(task_events,{'EVENT','eeg_use_sample','duration_sec'},{'type','latency','duration'});
         task_events.duration = task_events.duration * EEG.srate; % into samples
         task_events = task_events(task_events.VAL==7|task_events.VAL==20,:);
         
@@ -109,7 +107,8 @@ if do_processing
         subavg.reading = mean(epoch_reading.data,3);
         subavg.sham = mean(epoch_sham.data,3);
         subavg.time = epoch_sham.times;
-        subavg.channels = epoch_sham.chanlocs.labels;
+        subavg.channels = {epoch_sham.chanlocs.labels};
+        subavg.n_repeats = n_epoch_bal;
         
         h2=figure('name','Fixation-related potentials by event type');clf
         ax(1)=subplot(2,1,1);
@@ -139,7 +138,108 @@ if do_processing
     end
 end
 
+% Compute group stats
+subfiles = dir(fullfile(dir_pre, analysis, 'subavg'));
+subfiles=subfiles(~ismember({subfiles.name},{'.','..'})); % damn u matlab
 
+   load(fullfile(subfiles(1).folder, subfiles(1).name) ); % read once to get dims for init
+
+allavg = struct('reading',zeros([1 size(subavg.reading)]),...
+    'sham',zeros([1 size(subavg.sham)]),...
+    'time',subavg.time,...
+    'channels',[]);
+for i = 1:length(subfiles)
+   load(fullfile(subfiles(i).folder, subfiles(i).name) );    
+
+   allavg.reading(i,:,:) = subavg.reading;
+   allavg.sham(i,:,:) = subavg.sham;
+   allavg.time = subavg.time;
+   allavg.channels = subavg.channels;
+   allavg.reading_rms(i,:) = sqrt(nanmean(subavg.reading.^2,1));
+   allavg.sham_rms(i,:) = sqrt(nanmean(subavg.sham.^2,1));
+end
+group.time = allavg.time;
+group.channels = allavg.channels;
+nchan = length(group.channels);
+group.reading.avg = squeeze(nanmean(allavg.reading,1));
+group.reading.std = squeeze(nanstd(allavg.reading,0,1));
+
+% bootstrap estimate of SE over subjects  
+for c=1:nchan
+[~,group.reading.se(c,:),~] = fBootstrapMean(squeeze(allavg.reading(:,c,:))',500);
+end
+for c=1:nchan
+[~,group.reading.se(c,:),~] = fBootstrapMean(squeeze(allavg.reading(:,c,:))',500);
+end
+group.sham.avg = squeeze(nanmean(allavg.sham,1));
+group.sham.std = squeeze(nanstd(allavg.sham,0,1));
+% bootstrap estimate of mean and SE of RMS  
+[rms,sdev,~]=fBootstrapRMS(allavg.reading_rms',500);
+group.reading.avgrms = rms;
+group.reading.SErms = sdev;
+[rms,sdev,~]=fBootstrapRMS(allavg.sham_rms',500);
+group.sham.avgrms = rms;
+group.sham.SErms = sdev;
+
+
+% plot
+ax=[];
+h=figure(44);clf
+ax(1)=subplot(1,2,1);
+p1=plot(group.time, group.reading.avg,'LineWidth',2);
+title('Reading')
+ax(2)=subplot(1,2,2);
+p2=plot(group.time, group.sham.avg,'LineWidth',2);
+linkaxes(ax)
+title('Sham')
+set(p1, {'color'}, num2cell(turbo(nchan),2));
+set(p2, {'color'}, num2cell(turbo(nchan),2));
+legend(group.channels)
+sgtitle(['FRPs for N=' num2str(length(subfiles)) ' ' preprotype])
+
+% plot selected channel on same plot
+% % Colours
+clrs=[229 46 76
+    255 158 0
+    55 154 106
+    128 20 37
+    158 95 0
+    27 81 55
+    0 61 76]/255;
+
+ax=[];
+h=figure(55);clf
+for c=1:nchan
+ax(c)=subplot(2,4,c);
+pp1=plot(group.time, group.reading.avg(c,:),'Color',clrs(1,:),'LineWidth',2);
+hold on
+pp2=plot(group.time, group.sham.avg(c,:),'Color',clrs(2,:),'LineWidth',2);
+linkaxes(ax)
+title(group.channels{c})
+legend({'reading','sham'})
+end
+sgtitle(['FRPs for N=' num2str(length(subfiles)) ' ' preprotype])
+
+% plot RMS 
+h=figure(88);clf
+plot(group.time, group.reading.avgrms,'Color',clrs(1,:),'LineWidth',2);
+hold on
+b=group.reading.SErms; a=group.reading.avgrms;
+ Y = [b+a;flipud(-b+a)];
+ abscissa = group.time';
+            X = [abscissa;flipud(abscissa)];
+            h = fill(X,Y,clrs(1,:),'edgecolor','none','facealpha',0.2); hold on;
+ b=group.sham.SErms; a=group.sham.avgrms;
+ Y = [b+a;flipud(-b+a)];
+ abscissa = group.time';
+            X = [abscissa;flipud(abscissa)];
+            h = fill(X,Y,clrs(2,:),'edgecolor','none','facealpha',0.2); hold on;
+ 
+plot(allavg.time, group.sham.avgrms,'Color',clrs(2,:),'LineWidth',2);
+        set(gca,'children',flipud(get(gca,'children'))); % Send shaded areas in background
+
+legend({'reading','sham'})
+title(['RMS (power) of FRPs for N=' num2str(length(subfiles)) ' ' preprotype])
 
 % %TODO group level analyses
 % [STUDY, ALLEEG] = std_editset( [], [], 'name','EML',...

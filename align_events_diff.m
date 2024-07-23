@@ -42,7 +42,7 @@ diffy = diff(y);
 
 % for each element in diffx find its distance to diffy
 for i=1:length(diffx)
-    %             diffmatrix(:,i) = diffx(i)-diffy;
+    diffmatrix(:,i) = diffx(i)-diffy;
     [m,j]=min(abs(diffx(i)-diffy));
     diffmatchings(i,1) = i;
     diffmatchings(i,2) = j;

@@ -7,17 +7,17 @@ EEG analysis for EML: preprocessing pipeline
 
 reprepro = True # re-do preprocessing. If False, checks outdir and skips participants with a prepro'd file
 plotTF = False
-datadir = os.path.normpath('/Volumes/Blue1TB/EyeMindLink/Data')
-outdir = os.path.normpath('../../Data/EEG_processed/')# save directory for processed EEG data
-triggerSources = pd.read_csv('triggerSources.csv') # available triggers (as checked by Rosy)
+datadir = os.path.normpath('/Volumes/Blue1TB/localEyeMindLink/Data')
+outdir = os.path.normpath('../../Data/EEG_processed/preprocessed_fif/')# save directory for processed EEG data
+#triggerSources = pd.read_csv('triggerSources.csv') # available triggers (as checked by Rosy)
 fnroot = 'EML1_'
-participants = range(141,167) # recall that range is exclusive in Python - it will do first : end-1
+participants = range(92,93)
 
 for p in participants:
     pID= fnroot + '{:03d}'.format(p)  
     print_and_log("\n\n\n~~~~~pID: {0}~~~~~".format(pID))
-    prepro_exists = False
-
+    prepro_exists = False # default 
+    use_streamed = False # default
     # check for existing preprocessed data first
     if os.path.isfile(os.path.normpath(outdir + '/' + pID + '_p.fif')):
         print_and_log("\n{0}: Existing preprocessed file found in {1}".format(pID,os.path.normpath(outdir + '/' + pID + '_p.fif')))
@@ -31,22 +31,19 @@ for p in participants:
         pIDpath = os.path.normpath(datadir + "/" + pID + "/EEG" )
         print_and_log("Searching folder {0}".format(pIDpath))
         # Choose EEG file to process: prefer SD card if triggers available, otherwise streamed
-        trigSource = triggerSources[triggerSources['pID']==pID]
-        use_streamed = False # default not to use streamed file unless issues exist w SD rec
-     
-        if trigSource.iloc[0]['sdcard']:
-            print_and_log('Will look for an SD card recording (LA*.vhdr)')
-            vhdr = glob.glob(pIDpath + "/LA" +  "*.vhdr") # filenames starting 'LA' for SD card recording
-            if not(vhdr):
-                print_and_log('Attempted to find SD card recording (LA*.vhdr). No header file found!')
-                use_streamed = True
-            elif len(vhdr)>1:
-                print_and_log('Multiple SD card header files found (LA*.vhdr), will only process first one. Please check data folder.')
-                vhdr = vhdr[0]
-            else:
-                vhdr = vhdr[0]  # still need to unlist even if it is just a list of length 1
-        else:
+
+        print_and_log('Will first look for an SD card recording (LA*.vhdr)')
+        vhdr = glob.glob(os.path.join(pIDpath,"LA*.vhdr")) # filenames starting 'LA' for SD card recording
+        if not(vhdr):
+            print_and_log('Attempted to find SD card recording (LA*.vhdr). No header file found!')
             use_streamed=True
+
+        elif len(vhdr)>1:
+            print_and_log('Multiple SD card header files found (LA*.vhdr), will only process first one. Please check data folder.')
+            vhdr = vhdr[0]
+        else:
+            vhdr = vhdr[0]  # still need to unlist even if it is just a list of length 1
+  
         if  use_streamed:
             print_and_log('Will look for a streamed recording (EML1_*.vhdr)')
             vhdr = glob.glob(pIDpath + "/EML1" +  "*.vhdr") # filenames starting 'EML1' for streamed recording
