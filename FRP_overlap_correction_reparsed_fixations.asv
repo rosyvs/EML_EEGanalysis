@@ -33,7 +33,6 @@ unfdir = 'unfolded_FRP_reparsed';
 mkdir( fullfile(dir_pre,unfdir))
 
 beh_data = readtable('../../Data/EML1_page_level.csv');
-
 %% load reparsed & IA-labelled fixations
 fix_reparsed = readtable('/Volumes/Blue1TB/EyeMindLink/DataViewer/DataViewer_EML1/Output/FixationReport_14feb2023.txt');
 cols = split(fix_reparsed.RECORDING_SESSION_LABEL,'-');
@@ -185,12 +184,37 @@ for s = 1:length(sublist)
         uf_nodc = uf_condense(EEG_epoch);
     
         %% Plot single trials
+        cfg=[];
+        cfg.alignto = 'fix_R';
+        % % cfg.keep={{'task','reading'}}; % which event(s) predictor(s) pair(s) to keep   {'eventA',{'stimB'}} (or a cell array of such cell arrays)
+        % cfg.split_by = 'task';
+        cfg = [fieldnames(cfg),struct2cell(cfg)].';
+
+        dc_ERP = squeeze(uf_erpimage( EEG ,'type','modelled','addResiduals',1,'channel',1,cfg{:}) ); 
+
         set(gcf, 'Position',[   616   707   806   310])
         saveas(gcf,fullfile(dir_pre,unfdir,[pID '_deconv_trialwise.png']) )
+
         uf_erpimage(EEG,'type','raw','channel',1, cfg{:})
         set(gcf, 'Position',[   616   707   806   310])
         saveas(gcf,fullfile(dir_pre,unfdir,[pID '_raw_trialwise.png']) )
     
+        %% 
+        % select only reading trials
+        dc_EEG = uf_getERP(EEG ,'type','modelled','addResiduals',1,'channel',1:length(EEG.chanlocs),cfg{:}) ;
+        channels = 1:length(dc_EEG.chanlocs);
+        evt = struct2table(dc_EEG.urevent);
+        keep_ix =find(strcmp(evt.type,'fix_R') & strcmp(evt.task,'reading'));
+        for c = channels
+            chanlabel = dc_EEG.chanlocs(c).labels;
+            dcFRP = squeeze(dc_EEG.data(c,:,keep_ix));
+            writematrix(dcFRP,fullfile(dir_pre,unfdir, ['unfoldedFRP-reading_' chanlabel '.csv']));
+        end
+        keep_evt = evt(keep_ix,:); 
+
+        %% N400 magnitude and latency
+        [mag, lat] = getERPmagnitude(dc_EEG, [.35, .5], keep_ix);
+
         %% plot estimated ERP compare to no-deconvolution approach
         % without deconv
         g = uf_plotParam(uf_nodc,'channel',1,'deconv',0,'baseline',[-0.2 0],'add_intercept' ,1, 'plotSeparate','event');
@@ -218,4 +242,13 @@ for s = 1:length(sublist)
         rethrow(ME)
         disp(['Fail for ' pID])
     end
+end
+
+%%
+function [magnitude, latency] = getERPmagnitude(EEG_epoched, win, trials)
+    sel = find(EEG_epoched.times<= win(2) & EEG_epoched.times>=win(1));
+    EEG_epoched.data = EEG_epoched.data(:,sel,trials);
+    [m, ix] = max(abs(EEG_epoched.data),[],2);
+    magnitude = squeeze(EEG_epoched.data(ix));
+    latency = squeeze(EEG_epoched.times(sel(ix)));
 end
