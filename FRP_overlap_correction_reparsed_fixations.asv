@@ -10,7 +10,7 @@ init_unfold
 hasTriggerList =readtable('triggerSources.csv');
 %%%%%%%%%
 repro= 0; % re do analysis or just read in from file?
-sublist = [34:181]; % TODO: replace with full sublist, short list used for dev
+sublist = [60:66]; % TODO: replace with full sublist, short list used for dev
 %%%%%%%%%
 
 exclude_linenoise = [30 36 98 101 102 109 111 114 118 122 125 131 134 136 139]; % TODO: deal with this line noise
@@ -176,44 +176,57 @@ for s = 1:length(sublist)
         %% GLM fit - deconvolution
         EEG = uf_glmfit(EEG);
         % (strictly speaking optional, but recommended)
-        uf_dc = uf_condense(EEG);
+        % uf_dc = uf_condense(EEG);
     
-        %% GLM fit - no deconvolution
-        EEG_epoch = uf_epoch(EEG,'timelimits',[-0.2 1.5]);
-        EEG_epoch = uf_glmfit_nodc(EEG_epoch);
-        uf_nodc = uf_condense(EEG_epoch);
+        % %% GLM fit - no deconvolution
+        % EEG_epoch = uf_epoch(EEG,'timelimits',[-0.2 1.5]);
+        % EEG_epoch = uf_glmfit_nodc(EEG_epoch);
+        % uf_nodc = uf_condense(EEG_epoch);
+        % 
+        % %% Plot single trials
+        % cfg=[];
+        % cfg.alignto = 'fix_R';
+        % % % cfg.keep={{'task','reading'}}; % which event(s) predictor(s) pair(s) to keep   {'eventA',{'stimB'}} (or a cell array of such cell arrays)
+        % % cfg.split_by = 'task';
+        % cfg = [fieldnames(cfg),struct2cell(cfg)].';
+        % 
+        % dc_ERP = squeeze(uf_erpimage( EEG ,'type','modelled','addResiduals',1,'channel',1,cfg{:}) ); 
+        % 
+        % set(gcf, 'Position',[   616   707   806   310])
+        % saveas(gcf,fullfile(dir_pre,unfdir,[pID '_deconv_trialwise.png']) )
+        % 
+        % uf_erpimage(EEG,'type','raw','channel',1, cfg{:})
+        % set(gcf, 'Position',[   616   707   806   310])
+        % saveas(gcf,fullfile(dir_pre,unfdir,[pID '_raw_trialwise.png']) )
     
-        %% Plot single trials
+        %% 
+        % select only reading trials
         cfg=[];
         cfg.alignto = 'fix_R';
         % % cfg.keep={{'task','reading'}}; % which event(s) predictor(s) pair(s) to keep   {'eventA',{'stimB'}} (or a cell array of such cell arrays)
         % cfg.split_by = 'task';
         cfg = [fieldnames(cfg),struct2cell(cfg)].';
-
-        dc_ERP = squeeze(uf_erpimage( EEG ,'type','modelled','addResiduals',1,'channel',1,cfg{:}) ); 
-
-        set(gcf, 'Position',[   616   707   806   310])
-        saveas(gcf,fullfile(dir_pre,unfdir,[pID '_deconv_trialwise.png']) )
-
-        uf_erpimage(EEG,'type','raw','channel',1, cfg{:})
-        set(gcf, 'Position',[   616   707   806   310])
-        saveas(gcf,fullfile(dir_pre,unfdir,[pID '_raw_trialwise.png']) )
-    
-        %% 
-        % select only reading trials
         dc_EEG = uf_getERP(EEG ,'type','modelled','addResiduals',1,'channel',1:length(EEG.chanlocs),cfg{:}) ;
         channels = 1:length(dc_EEG.chanlocs);
         evt = struct2table(dc_EEG.urevent);
         keep_ix =find(strcmp(evt.type,'fix_R') & strcmp(evt.task,'reading'));
+        keep_evt = evt(keep_ix,:); 
+
         for c = channels
             chanlabel = dc_EEG.chanlocs(c).labels;
             dcFRP = squeeze(dc_EEG.data(c,:,keep_ix));
-            writematrix(dcFRP,fullfile(dir_pre,unfdir, ['unfoldedFRP-reading_' chanlabel '.csv']));
+            writematrix(dcFRP,fullfile(dir_pre,unfdir, [pOD '_unfoldedFRP-reading_' chanlabel '.csv']));
         end
-        keep_evt = evt(keep_ix,:); 
 
         %% N400 magnitude and latency
         [mag, lat] = getERPmagnitude(dc_EEG, [.35, .5], keep_ix);
+        for c = channels
+            chanlabel = dc_EEG.chanlocs(c).labels;
+            keep_evt(eval(['n400_magnitude_' chanlabel])) = mag(c,:);
+            keep_evt(eval(['n400_latency_' chanlabel])) = lat(c,:);
+        end
+
+        writetable(keep_evt, fullfile(dir_pre,unfdir,[pID '_reading_N400_stats.csv']));
 
         %% plot estimated ERP compare to no-deconvolution approach
         % without deconv
@@ -245,10 +258,10 @@ for s = 1:length(sublist)
 end
 
 %%
-function [magnitude, latency] = getERPmagnitude(EEG_epoched, win, trials)
-    sel = find(EEG_epoched.times<= win(2) & EEG_epoched.times>=win(1));
-    EEG_epoched.data = EEG_epoched.data(:,sel,trials);
-    [m, ix] = max(abs(EEG_epoched.data),[],2);
-    magnitude = squeeze(EEG_epoched.data(ix));
-    latency = squeeze(EEG_epoched.times(sel(ix)));
+function [magnitude, latency] = getERPmagnitude(x, win, trials)
+    sel = find(x.times<= win(2) & x.times>=win(1));
+    x.data = x.data(:,sel,trials);
+    [m, ix] = max(abs(x.data),[],2);
+    magnitude = x.data(ix);
+    latency = squeeze(x.times(sel(squeeze(ix))));
 end
