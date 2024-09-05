@@ -10,7 +10,7 @@ init_unfold
 hasTriggerList =readtable('triggerSources.csv');
 %%%%%%%%%
 repro= 0; % re do analysis or just read in from file?
-sublist = [49]; % TODO: replace with full sublist, short list used for dev
+sublist = [1:158]; % TODO: replace with full sublist, short list used for dev
 %%%%%%%%%
 
 exclude_linenoise = [30 36 98 101 102 109 111 114 118 122 125 131 134 136 139]; % TODO: deal with this line noise
@@ -208,7 +208,7 @@ for s = 1:length(sublist)
             dcFRP = squeeze(dc_EEG.data(c,:,:));
             % checn n nunique values
             nuniqueEEG = length(unique(dcFRP));
-                    % plot to check
+            % plot to check
             plot(dc_EEG.times,mean(dcFRP,2))
             hold on
             chanlabel = dc_EEG.chanlocs(c).labels;
@@ -226,7 +226,8 @@ for s = 1:length(sublist)
             y=dc_EEG.data;
             y = y(c,sel,:);
             [m, ix] = max(abs(y),[],2);
-            mag = squeeze(y(ix));
+            mag = squeeze(y(ix));% THIS LINE IS WRONG
+            mag = y(:,ix,:);
             lat = squeeze(dc_EEG.times(sel(squeeze(ix))));
             chanlabel = dc_EEG.chanlocs(c).labels;
             keep_evt.(['n400_magnitude_' chanlabel]) = mag;
