@@ -226,8 +226,10 @@ for s = 1:length(sublist)
             y=dc_EEG.data;
             y = y(c,sel,:);
             [m, ix] = max(abs(y),[],2);
-            mag = squeeze(y(ix));% THIS LINE IS WRONG
-            mag = y(:,ix,:);
+            mag = zeros(size(ix(:))); % max val for each trial. I'm being dumb but cant work out how to vectorise this rn
+            for z = 1:length(ix(:))% loop over trials
+                mag(z) = y(1,ix(z),z);
+            end
             lat = squeeze(dc_EEG.times(sel(squeeze(ix))));
             chanlabel = dc_EEG.chanlocs(c).labels;
             keep_evt.(['n400_magnitude_' chanlabel]) = mag;
@@ -264,23 +266,23 @@ for s = 1:length(sublist)
 
         % set nice colors
         for gg = 1:length(g.results.geom_line_handle)
-            g.results.geom_line_handle(gg).Color = [200 0 0]/255;
+            g.results.geom_line_handle(gg).EdgeColor = [200 0 0]/255;
         end
 
         % with deconv
         g = uf_plotParam(uf_dc,'channel',1,'deconv',1,'baseline',[-0.2 0],'add_intercept' ,1,'gramm',g);
         % set nice colors
         for gg = 1:length(g.results.geom_line_handle)
-            g.results.geom_line_handle(gg).Color = [0 200 0]/255;
+            g.results.geom_line_handle(gg).EdgeColor = [0 200 0]/255;
         end
-        set(gcf, 'Position',[   616   707   806   310])
+        set(gcf, 'Position',[          31         361        1197         277])
 
         legend('no deconv','deconv')
         saveas(gcf,fullfile(dir_pre,unfdir,[pID '_fixR.png']) )
     
         %% save processed EEG
         pop_saveset(EEG, 'filename',pID, 'filepath',fullfile(dir_pre,unfdir), 'savemode','onefile')
-        pop_saveset(dc_EEG, 'filename',[pID '_dc_epochs'], 'filepath',fullfile(dir_pre,unfdir), 'savemode','onefile')
+        % pop_saveset(dc_EEG, 'filename',[pID '_dc_epochs'], 'filepath',fullfile(dir_pre,unfdir), 'savemode','onefile')
 
     catch ME
         beep
