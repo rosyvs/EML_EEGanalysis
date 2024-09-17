@@ -39,7 +39,6 @@ cols = split(fix_reparsed.RECORDING_SESSION_LABEL,'-');
 fix_reparsed.ParticipantID = cols(:,1);
 clear cols
 for s = 1:length(sublist)
-    try
         tic;
         close all; clear EEGft logtrig fixations
         %  fileID = fopen('osc_win_log.txt', 'a');
@@ -95,7 +94,7 @@ for s = 1:length(sublist)
         task_events.urevent=NaN(height(task_events),1);
         task_events.type = repmat({'task_event'},height(task_events),1);
         task_events.page_fixation_ix = repmat(0, height(task_events),1); % column needed for consistency but doesn't mean anything for this event type
-    
+        task_events.IA_ID = repmat({'.'}, height(task_events),1); % column needed for consistency but doesn't mean anything for this event type
         %% make events for reparsed fixations
         % Note: eyetracker and EEG sample rate are both 1000Hz for EML. If this
         % werent the case you would need to do some conversions to match the
@@ -109,6 +108,7 @@ for s = 1:length(sublist)
         fixations = fixations(fixations.latency>=0,:);
         fixations = fixations(fixations.latency+fixations.duration <= EEG.pnts,:);
         fixations.page_fixation_ix = fixations.CURRENT_FIX_INDEX; % needed for aligning to word level features
+        fixations.IA_ID = fixations.CURRENT_FIX_INTEREST_AREA_ID; % needed for aligning to word level features
 
         %% select reading eye events from orig info
         eye_events = events_orig(contains(events_orig.type, 'fix_') | contains(events_orig.type, 'sac_')| contains(events_orig.type, 'blink_'),:);
@@ -127,9 +127,9 @@ for s = 1:length(sublist)
         % remove NaN latency events
         eye_events = eye_events(~isnan(eye_events.latency),:);
         eye_events.page_fixation_ix = repmat(0, height(eye_events),1); % column needed for consistency but doesn't mean anything for this event type, only for labelled fixations
-
+        eye_events.IA_ID = repmat({'.'}, height(eye_events),1); % column needed for consistency but doesn't mean anything for this event type
+        
         %% compare reparsed and old fixations
-
         old_fixations = eye_events(strcmp(eye_events.type, 'fix_R'),:);
         old_fixations = old_fixations(:,{'identifier','type','latency','duration'});
         new_fixations = fixations(:,{'identifier','type','latency','duration'});
@@ -146,7 +146,7 @@ for s = 1:length(sublist)
         saccades = eye_events(~cellfun('isempty',strfind(eye_events.type, 'sac_R')),:);
 
         % columns to use 
-        cols = {'type','latency','duration','task','identifier','page_fixation_ix'};
+        cols = {'type','latency','duration','task','identifier','page_fixation_ix','IA_ID'};
         events_new = [blinks(:,cols); fixations(:,cols); old_fixations_keep(:,cols); task_events(:,cols); saccades(:,cols)]; 
         events_new = sortrows(events_new,'latency');
         events_new.task= fillmissing(events_new.task,'constant','none');
@@ -168,13 +168,22 @@ for s = 1:length(sublist)
         % thouogh detrending should have fixed slow drifts & this is very
         % slow
         EEG = pop_eegfiltnew(EEG,'hicutoff',40,'usefftfilt',1); % TODO read https://www.sciencedirect.com/science/article/abs/pii/S0165027014002866
-        EEG = pop_resample( EEG, 100);
+        sr_orig = EEG.srate;
+        EEG = pop_resample( EEG, 100); % duration and latency fields of .event are now resampled too - untis are samples in the new srate
     
         %% design
+
         cfgDesign = [];
         cfgDesign.eventtypes = {'fix_R','blink_R','sac_R','task_event'}; % use right eye
         cfgDesign.formula = {'y ~ 1 + cat(task)','y ~ 1', 'y ~ 1', 'y ~ 1'}; 
-    
+        % check what event types are in the data and omit any that dont exist otherwise it won;t make a design matrix
+        valid_events = unique({EEG.event.type});
+        for j = 1:length(cfgDesign.eventtypes)
+            if ~ismember(cfgDesign.eventtypes{j},valid_events)
+                disp(['no isntances of ' cfgDesign.eventtypes{j}])
+                cfg
+            end
+        end
         EEG = uf_designmat(EEG,cfgDesign);
     
         EEG = uf_timeexpandDesignmat(EEG,'timelimits',[-0.3 0.8]);
@@ -205,7 +214,7 @@ for s = 1:length(sublist)
         figure()
         
         for c = channels
-            dcFRP = squeeze(dc_EEG.data(c,:,:));
+            dcFRP = squeeze(dc_EEG.data(c,:,:));dndney
             % checn n nunique values
             nuniqueEEG = length(unique(dcFRP));
             % plot to check
@@ -226,18 +235,18 @@ for s = 1:length(sublist)
             y=dc_EEG.data;
             y = y(c,sel,:);
             [m, ix] = max(abs(y),[],2);
-            mag = squeeze(y(ix));% THIS LINE IS WRONG
+            mag = zeros(size(ix(:))); % max val for each trial. I'm being dumb but cant work out how to vectorise this rn
             for z = 1:length(ix(:))% loop over trials
-                mag(z) = y(ix(z))
-            mag = y(:,ix(:),:);
+                mag(z) = y(1,ix(z),z);
+            end
             lat = squeeze(dc_EEG.times(sel(squeeze(ix))));
             chanlabel = dc_EEG.chanlocs(c).labels;
             keep_evt.(['n400_magnitude_' chanlabel]) = mag;
             keep_evt.(['n400_latency_' chanlabel]) = lat';
         end
-        % convert durations to ms'
-        keep_evt.latency = keep_evt.latency*dc_EEG.srate;
-        keep_evt.duration=keep_evt.duration*dc_EEG.srate;
+        % convert durations to ms from samples
+        keep_evt.latency = keep_evt.latency*sr_orig/dc_EEG.srate;
+        keep_evt.duration=keep_evt.duration*sr_orig/dc_EEG.srate;
         writetable(keep_evt, fullfile(dir_pre,unfdir,[pID '_reading_N400_stats.csv']));        %% Plot single trials
         
         %% plot single trials
@@ -266,30 +275,24 @@ for s = 1:length(sublist)
 
         % set nice colors
         for gg = 1:length(g.results.geom_line_handle)
-            g.results.geom_line_handle(gg).Color = [200 0 0]/255;
+            g.results.geom_line_handle(gg).EdgeColor = [200 0 0]/255;
         end
 
         % with deconv
         g = uf_plotParam(uf_dc,'channel',1,'deconv',1,'baseline',[-0.2 0],'add_intercept' ,1,'gramm',g);
         % set nice colors
         for gg = 1:length(g.results.geom_line_handle)
-            g.results.geom_line_handle(gg).Color = [0 200 0]/255;
+            g.results.geom_line_handle(gg).EdgeColor = [0 200 0]/255;
         end
-        set(gcf, 'Position',[   616   707   806   310])
+        set(gcf, 'Position',[          31         361        1197         277])
 
         legend('no deconv','deconv')
         saveas(gcf,fullfile(dir_pre,unfdir,[pID '_fixR.png']) )
     
         %% save processed EEG
         pop_saveset(EEG, 'filename',pID, 'filepath',fullfile(dir_pre,unfdir), 'savemode','onefile')
-        pop_saveset(dc_EEG, 'filename',[pID '_dc_epochs'], 'filepath',fullfile(dir_pre,unfdir), 'savemode','onefile')
+        % pop_saveset(dc_EEG, 'filename',[pID '_dc_epochs'], 'filepath',fullfile(dir_pre,unfdir), 'savemode','onefile')
 
-    catch ME
-        beep
-        disp(ME.message)
-        disp(ME.stack)
-        disp(['Fail for ' pID])
-    end
 end
 
 %%
