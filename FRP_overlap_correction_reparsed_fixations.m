@@ -10,16 +10,16 @@ init_unfold
 hasTriggerList =readtable('triggerSources.csv');
 %%%%%%%%%
 repro= 0; % re do analysis or just read in from file?
-sublist = 19:158; % TODO: replace with full sublist, short list used for dev
+sublist = 104:158; % TODO: replace with full sublist, short list used for dev
 %%%%%%%%%
 
 exclude_linenoise = [30 36 98 101 102 109 111 114 118 122 125 131 134 136 139]; % TODO: deal with this line noise
 exclude_noise = [32 86]; %n other noise such as excessive jumps, blinks -  131? , movement
 exclude_movement = [];
 exclude_missingevents = [52 57 73 111 120 153]; % 57 73 because no eyetracking, others because EEG stopped recording early
-exclude_noEEG = [1:18 23 77 88 138];
+exclude_noEEG = [1:18 23 77 88 138 79 92]; % 79 onwards missing from reparsed fixations
 exclude_other = [22:24 26 27 31 39 40 78 160]; % TODO find reason for these - no .set why?
-exclude_glmfitfail = [35 68 147 149];
+exclude_glmfitfail = [19 35 68 147 149 54 59 87 91 103 104] ; % 54 onwards are only failing with sac splines
 exclude = unique([exclude_linenoise exclude_noise exclude_movement exclude_missingevents exclude_noEEG exclude_glmfitfail exclude_other]); % Subj to exclude because no eeg or no trigger etc.
 sublist = sublist(~ismember(sublist,exclude) );
 %sublist = sublist( ismember(sublist,find(hasTriggerList.sdcard==1)));
@@ -30,12 +30,13 @@ dir_pre = fullfile('/Volumes/Blue1TB/EEG_processed') ; % prepro in MNE
 dir_in = fullfile(dir_pre, 'preprocessed_set');
 dir_fif = fullfile(dir_pre, 'preprocessed_fif');
 
-unfdir = 'unfolded_FRP_reparsed_v5';
+unfdir = 'unfolded_FRP_reparsed_v6';
 mkdir( fullfile(dir_pre,unfdir))
 
 beh_data = readtable('../../Data/EML1_page_level.csv');
 %% load reparsed & IA-labelled fixations
-fix_reparsed = readtable('/Volumes/Blue1TB/EyeMindLink/DataViewer/DataViewer_EML1/Output/FixationReport_14feb2023.txt');
+fix_reparsed =readtable('/Users/roso8920/Emotive Computing Dropbox/Rosy Southwell/EML Rosy/EMLLM/info/FixationReport+InboundSaccades.csv',"TextType","char");
+
 cols = split(fix_reparsed.RECORDING_SESSION_LABEL,'-');
 fix_reparsed.ParticipantID = cols(:,1);
 clear cols
@@ -43,7 +44,7 @@ v=figure;
 v.WindowState = 'minimized' ;
 for s = 1:length(sublist)
         tic;
- clear EEGft logtrig fixations
+        clear EEGft logtrig fixations
         %  fileID = fopen('osc_win_log.txt', 'a');
     
         pID = ['EML1_',sprintf('%03d',sublist(s))];
@@ -57,7 +58,6 @@ for s = 1:length(sublist)
         nEEGsamples = EEG.pnts;
         events_orig = struct2table( EEG.event); % contains eyetracker events AND experiment events
         fixations = fix_reparsed(string(fix_reparsed.ParticipantID)==pID,:);
-    
     
         %% events
         % Read info txt to determine whether EEG+triggers are from SD card
@@ -86,8 +86,7 @@ for s = 1:length(sublist)
         logtrig.TrialType(logtrig.VAL>=2 & logtrig.VAL <=3) = {'recal'};
         logtrig.TrialType(logtrig.VAL>20 ) = {'localizer'};
         logtrig.TrialType(logtrig.VAL==25) = {'resting'};
-    
-    
+   
         %% make new event structure forreading pages with label for identifier
         task_events = logtrig(:,{'EVENT','TrialType','eeg_use_sample','duration_sec'});
         task_events = renamevars(task_events,{'EVENT','TrialType','eeg_use_sample','duration_sec'},{'identifier','task','latency','duration'});
@@ -96,13 +95,15 @@ for s = 1:length(sublist)
         % task_events = task_events(strcmp(task_events.type,'reading'),:);
         task_events.urevent=NaN(height(task_events),1);
         task_events.type = repmat({'task_event'},height(task_events),1);
-        task_events.page_fixation_ix = repmat(0, height(task_events),1); % column needed for consistency but doesn't mean anything for this event type
-        task_events.IA_ID = repmat({'.'}, height(task_events),1); % column needed for consistency but doesn't mean anything for this event type
+
         %% make events for reparsed fixations
         % Note: eyetracker and EEG sample rate are both 1000Hz for EML. If this
         % werent the case you would need to do some conversions to match the
         % time units
         fixations = outerjoin(fixations,task_events, 'Type','Left', 'MergeKeys',true);
+        task_events.page_fixation_ix = repmat(0, height(task_events),1); % column needed for consistency but doesn't mean anything for this event type
+        task_events.IA_ID = repmat({'.'}, height(task_events),1); % column needed for consistency but doesn't mean anything for this event type
+        task_events.INBOUND_SAC_AMPLITUDE=NaN(height(task_events),1); %
         % fixations = fixations(strcmp(fixations.type, 'reading'),:);
         fixations.duration = fixations.CURRENT_FIX_DURATION;
         fixations.latency = fixations.latency + fixations.CURRENT_FIX_START;
@@ -131,6 +132,7 @@ for s = 1:length(sublist)
         eye_events = eye_events(~isnan(eye_events.latency),:);
         eye_events.page_fixation_ix = repmat(0, height(eye_events),1); % column needed for consistency but doesn't mean anything for this event type, only for labelled fixations
         eye_events.IA_ID = repmat({'.'}, height(eye_events),1); % column needed for consistency but doesn't mean anything for this event type
+        eye_events.INBOUND_SAC_AMPLITUDE=NaN(height(eye_events),1); %
         
         %% compare reparsed and old fixations
         old_fixations = eye_events(strcmp(eye_events.type, 'fix_R'),:);
@@ -149,7 +151,7 @@ for s = 1:length(sublist)
         saccades = eye_events(~cellfun('isempty',strfind(eye_events.type, 'sac_R')),:);
 
         % columns to use 
-        cols = {'type','latency','duration','task','identifier','page_fixation_ix','IA_ID'};
+        cols = {'type','latency','duration','task','identifier','page_fixation_ix','IA_ID','INBOUND_SAC_AMPLITUDE'};
         events_new = [blinks(:,cols); fixations(:,cols); old_fixations_keep(:,cols); task_events(:,cols); saccades(:,cols)]; 
         events_new = sortrows(events_new,'latency');
         events_new.task= fillmissing(events_new.task,'constant','none');
@@ -166,6 +168,25 @@ for s = 1:length(sublist)
         crop_at = [min(read_events.latency)-margin max(read_events.latency)+margin];
         EEG = pop_select(EEG, 'time', crop_at/1000); % contraty to docs it is in seconds
 
+        %% impute missing INBOUND_SACCADE_AMP with median
+        ev= struct2table(EEG.event);
+        ev.INBOUND_SAC_AMPLITUDE{1}= NaN; % fill in for empty cells at "boundary" event
+        ev.INBOUND_SAC_AMPLITUDE{end}= NaN; % fill in for empty cells at "boundary" event
+        ev.INBOUND_SAC_AMPLITUDE = cell2mat(ev.INBOUND_SAC_AMPLITUDE); 
+
+        tasks = unique({EEG.event.task});
+        for tk = 1:length(tasks)
+            task=tasks{tk};
+            if (isempty(task) | strcmp(task,'boundary'))
+                continue
+            end
+            md = median(ev.INBOUND_SAC_AMPLITUDE(strcmp(task,ev.task),:),'omitmissing');
+          
+            disp(['median sac amp for ' task ':' num2str(md)])
+            ev.INBOUND_SAC_AMPLITUDE(strcmp(task,ev.task)) = fillmissing(ev.INBOUND_SAC_AMPLITUDE(strcmp(task,ev.task)),'constant',md);
+        end
+
+        EEG.event = table2struct(ev);
         %% Reref to average (might be better fro N400 as this should be maximal at central site but ref is at Cz)
         EEG = pop_reref(EEG,[],'interpchan',[]);
 
@@ -178,10 +199,11 @@ for s = 1:length(sublist)
         EEG = pop_resample( EEG, 100); % duration and latency fields of .event are now resampled too - untis are samples in the new srate
     
         %% design
-
         cfgDesign = [];
-        cfgDesign.eventtypes = {'fix_R','blink_R','sac_R','task_event'}; % use right eye
-        cfgDesign.formula = {'y ~ 1 + cat(task)','y ~ 1', 'y ~ 1', 'y ~ 1'}; 
+        cfgDesign.eventtypes = {'fix_R','task_event'}; % use right eye
+        cfgDesign.formula = {'y ~ 1 + cat(task) + spl(INBOUND_SAC_AMPLITUDE,5)', 'y ~ 1'}; 
+        % cfgDesign.eventtypes = {'fix_R','blink_R','sac_R','task_event'}; % use right eye
+        % cfgDesign.formula = {'y ~ 1 + cat(task) + spl(CURRENT_SACCADE_AMPLITUDE,5)','y ~ 1+ spl(CURRENT_SACCADE_AMPLITUDE,5)', 'y ~ 1', 'y ~ 1'}; 
         % check what event types are in the data and omit any that dont exist otherwise it won;t make a design matrix
         valid_events = unique({EEG.event.type});
         keep_regressors = ones(length(cfgDesign.eventtypes),1);
@@ -203,19 +225,17 @@ for s = 1:length(sublist)
 
         %% GLM fit - deconvolution
         EEG = uf_glmfit(EEG);
-        uf_dc = uf_condense(EEG); % (strictly speaking optional, but recommended)
+        EEG = uf_condense(EEG); % (strictly speaking optional, but recommended)
     
         %% GLM fit - no deconvolution
         EEG_epoch = uf_epoch(EEG,'timelimits',[-0.3 0.8]);
         EEG_epoch = uf_glmfit_nodc(EEG_epoch);
         uf_nodc = uf_condense(EEG_epoch);
 
-        
-
         %% Extract overlap-corrected single trial ERPs
         cfg=[];
         cfg.alignto = 'fix_R';
-        cfg.baseline = [-200, 0];
+        cfg.baseline = [-100, 0];
         cfg.winrej = winrej;
         cfg = [fieldnames(cfg),struct2cell(cfg)].';
         dc_EEG = uf_getERP(EEG ,'type','modelled','addResiduals',1,'channel',1:length(EEG.chanlocs),cfg{:});
@@ -269,15 +289,17 @@ for s = 1:length(sublist)
         cfg.figure=0;
         cfg = [fieldnames(cfg),struct2cell(cfg)].';
 
-        set(0,'CurrentFigure',v);
+        set(0,'CurrentFigure',v); clf
         uf_erpimage(EEG,'type','raw','channel',1, cfg{:})
         set(v, 'Position',[   616   707   806   310])
         saveas(gcf,fullfile(dir_pre,unfdir,[pID '_raw_trialwise.png']) )
-    
+
+        set(0,'CurrentFigure',v); clf
         uf_erpimage( EEG ,'type','modelled','addResiduals',1,'channel',1,cfg{:}); 
         set(v, 'Position',[   616   707   806   310])
         saveas(gcf,fullfile(dir_pre,unfdir,[pID '_deconv_trialwise.png']) )
 
+        set(0,'CurrentFigure',v); clf
         uf_erpimage( EEG ,'type','residual','channel',1,cfg{:}); 
         set(v, 'Position',[   616   707   806   310])
         saveas(gcf,fullfile(dir_pre,unfdir,[pID '_resid_trialwise.png']) )
@@ -285,7 +307,7 @@ for s = 1:length(sublist)
         %% plot estimated ERP compare to no-deconvolution approach
         % without deconv
         set(0,'CurrentFigure',v); clf
-        g = uf_plotParam(uf_nodc,'channel',1,'deconv',0,'baseline',[-0.2 0],'add_intercept' ,1,'figure',0);
+        g = uf_plotParam(uf_nodc,'channel',1,'deconv',0,'baseline',[-0.1 0],'add_intercept' ,1,'figure',0);
 
         % set nice colors
         for gg = 1:length(g.results.geom_line_handle)
@@ -293,7 +315,7 @@ for s = 1:length(sublist)
         end
 
         % with deconv
-        g = uf_plotParam(uf_dc,'channel',1,'deconv',1,'baseline',[-0.2 0],'add_intercept' ,1,'gramm',g,'figure',0);
+        g = uf_plotParam(EEG,'channel',1,'deconv',1,'baseline',[-0.1 0],'add_intercept' ,1,'gramm',g,'figure',0);
         % set nice colors
         for gg = 1:length(g.results.geom_line_handle)
             g.results.geom_line_handle(gg).EdgeColor = [0 200 0]/255;
@@ -308,12 +330,3 @@ for s = 1:length(sublist)
         % pop_saveset(dc_EEG, 'filename',[pID '_dc_epochs'], 'filepath',fullfile(dir_pre,unfdir), 'savemode','onefile')
 
 end
-
-%%
-% function [magnitude, latency] = getERPmagnitude(x, win, trials)
-%     sel = find(x.times<= win(2) & x.times>=win(1));
-%     x.data = x.data(:,sel,trials);
-%     [m, ix] = max(abs(x.data),[],2);
-%     magnitude = squeeze(x.data(ix));
-%     latency = squeeze(x.times(sel(squeeze(ix))));
-% end
