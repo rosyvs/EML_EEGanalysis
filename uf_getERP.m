@@ -141,7 +141,7 @@ cfg = finputcheck(input,...
     ... % Plot Options
     'split_by','',[],[];       % make multiple subplots with separate ERPimages
     'winrej','real',[],[];     % remove parts of the continuous data
-    'baseline','real',[],[]
+    'baseline','real',[],[];
     'plot','boolean',[],n_argout_caller==0;     % if called without requesting output,
     'timelimits','real',[],[]; %from when to when
     'channel','integer',1:size(EEG.data,1),[];
@@ -236,14 +236,16 @@ function [data,data_yhat] = get_data(ufresult,cfg,keep,EEG_epoch)
         assert(~all(isnan(beta(:))),'found only nans, did you specify & calculate the correct channel?')
         % beta = squeeze(mean(beta,1));
         if dc == 1
-            data=zeros(length(cfg.channel), size(X,1));
+            data=zeros(length(cfg.channel), size(X,1)); % channel, time
         else
-            data=zeros(length(cfg.channel), size(beta, 2),size(X,1));
+            data=zeros(length(cfg.channel), size(beta, 2),size(X,1));% channel, epochtime, trials
         end
         for c = cfg.channel
             beta_c = beta(c,:,:);
-            beta_c = squeeze(beta_c);
-            beta_c = beta_c';
+            beta_c = squeeze(mean(beta_c,1));
+            if size(beta_c,1) == 1
+                beta_c = beta_c';
+            end
             if dc == 1
                 % timeexpanded
                 keepX = ismember(ufresult.unfold.Xdc_terms2cols,keep);
@@ -251,9 +253,7 @@ function [data,data_yhat] = get_data(ufresult,cfg,keep,EEG_epoch)
             else
                 %normal designmat
                 keepX = keep;
-                if size(beta_c,1) == 1
-                    beta_c = beta_c'; % because of the "nice" behaviour of matlab to turn every Nx1 to a 1xN we have to undo that
-                end
+                beta_c = beta_c'; % because of the "nice" behaviour of matlab to turn every Nx1 to a 1xN we have to undo that
             end
             data_c = X(:,keepX)*beta_c;
             data_c = full(data_c);
@@ -261,7 +261,7 @@ function [data,data_yhat] = get_data(ufresult,cfg,keep,EEG_epoch)
                 if size(data_c,1)==1
                     data_c = data_c';
                 end
-               data(c,:,:) = data_c';
+                data(c,:,:) = data_c';
             else
                 data(c,:) = data_c';
             end
@@ -271,7 +271,7 @@ function [data,data_yhat] = get_data(ufresult,cfg,keep,EEG_epoch)
 
 if strcmp(cfg.type,"raw")
     data = EEG_epoch.data(cfg.channel,:,:);
-    data_yhat = nan; 
+    data_yhat = nan;
 else
     if cfg.overlap
         data      = calculate_yhat(ufresult.unfold.Xdc,ufresult,cfg,keep);
@@ -285,9 +285,9 @@ else
         % in case of addResiduals == 2 the residuals are already calculated
         data_yhat = calculate_yhat(ufresult.unfold.Xdc,ufresult,cfg,1:size(ufresult.unfold.X,2));
     end
-        % Baseline Correction
+    % Baseline Correction
     if ~isempty(cfg.baseline)
-       data= bsxfun(@minus,data ,mean(data(:,(ufresult.times>=cfg.baseline(1))& (ufresult.times<cfg.baseline(2)),:),2));
+        data= bsxfun(@minus,data ,mean(data(:,(ufresult.times>=cfg.baseline(1))& (ufresult.times<cfg.baseline(2)),:),2));
     end
 end
 end
@@ -313,19 +313,20 @@ else
 end
 %%
 % Adding back residuals
-if cfg.addResiduals~=0 || str(cfg.type, "residual")
+if cfg.addResiduals~=0 || strcmp(cfg.type,'residual')
     fprintf('adding residuals\n')
     EEG_residuals = EEG_new;
+    EEG_modelled = EEG_new;
     % this is the fully modelled data
-    EEG_residuals.data  = data_yhat;
-    if ismatrix(EEG_residuals.data) % if channel x time => continuous EEG
+    EEG_modelled.data  = data_yhat;
+    if ismatrix(data_yhat) % if channel x time => continuous EEG
         %in case of overlap we have continuous residuals and have to cut
         %them once more to epochs
-        EEG_residuals = uf_epoch(EEG_residuals,'timelimits',ufresult.unfold.times([1,end])+[0 diff(ufresult.times([1:2]))],'winrej',cfg.winrej);
+        EEG_modelled= uf_epoch(EEG_modelled,'timelimits',ufresult.unfold.times([1,end])+[0 diff(ufresult.times([1:2]))],'winrej',cfg.winrej);
     end
 
     % calculate residuals as y-yhat
-    EEG_residuals.data = EEG_epoch.data(cfg.channel,:,:) - EEG_residuals.data;
+    EEG_residuals.data = EEG_epoch.data(cfg.channel,:,:) - EEG_modelled.data(cfg.channel,:,:); % this is wrong surely, dims dont add up as yaht here is not epoched !
 
 
     if cfg.type == "residual"
@@ -355,7 +356,7 @@ if ~isempty(ix_remove)
 end
 keep_epoch(ix_remove) = [];
 EEG_out.data = EEG_out.data(:,:,keep_epoch);
-EEG_out.urevent = EEG_out.urevent(keep_epoch); %added by RVS, 
+EEG_out.urevent = EEG_out.urevent(keep_epoch); %added by RVS,
 fprintf('Aligning to event %s, %i epochs found\n',strjoin(cfg.alignto,':'),length(keep_epoch)) % RVS caught a bug here.
 end
 

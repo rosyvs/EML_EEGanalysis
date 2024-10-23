@@ -10,16 +10,16 @@ init_unfold
 hasTriggerList =readtable('triggerSources.csv');
 %%%%%%%%%
 repro= 0; % re do analysis or just read in from file?
-sublist = 104:158; % TODO: replace with full sublist, short list used for dev
+sublist = [ 128:158]; % TODO: replace with full sublist, short list used for dev
 %%%%%%%%%
 
 exclude_linenoise = [30 36 98 101 102 109 111 114 118 122 125 131 134 136 139]; % TODO: deal with this line noise
 exclude_noise = [32 86]; %n other noise such as excessive jumps, blinks -  131? , movement
 exclude_movement = [];
 exclude_missingevents = [52 57 73 111 120 153]; % 57 73 because no eyetracking, others because EEG stopped recording early
-exclude_noEEG = [1:18 23 77 88 138 79 92]; % 79 onwards missing from reparsed fixations
+exclude_noEEG = [1:18 23 77 88 138 79 87 92 127]; % 79 onwards missing from reparsed fixations
 exclude_other = [22:24 26 27 31 39 40 78 160]; % TODO find reason for these - no .set why?
-exclude_glmfitfail = [19 35 68 147 149 54 59 87 91 103 104] ; % 54 onwards are only failing with sac splines
+exclude_glmfitfail = [19 35 68 147 149 ] ; % 54 onwards are only failing with sac splines
 exclude = unique([exclude_linenoise exclude_noise exclude_movement exclude_missingevents exclude_noEEG exclude_glmfitfail exclude_other]); % Subj to exclude because no eeg or no trigger etc.
 sublist = sublist(~ismember(sublist,exclude) );
 %sublist = sublist( ismember(sublist,find(hasTriggerList.sdcard==1)));
@@ -40,7 +40,7 @@ fix_reparsed =readtable('/Users/roso8920/Emotive Computing Dropbox/Rosy Southwel
 cols = split(fix_reparsed.RECORDING_SESSION_LABEL,'-');
 fix_reparsed.ParticipantID = cols(:,1);
 clear cols
-v=figure;
+v=figure('Visible','off');
 v.WindowState = 'minimized' ;
 for s = 1:length(sublist)
         tic;
@@ -216,7 +216,10 @@ for s = 1:length(sublist)
         cfgDesign.eventtypes = cfgDesign.eventtypes(find(keep_regressors));
         cfgDesign.formula = cfgDesign.formula(find(keep_regressors));
         EEG = uf_designmat(EEG,cfgDesign);
-    
+        if sum(sum(isnan(EEG.unfold.X))) >0
+            disp(['Found ' mat2str(sum(isnan(EEG.unfold.X))) ' NaN values in columns of X. Imputing...']);
+            EEG = uf_imputeMissing(EEG);
+        end
         EEG = uf_timeexpandDesignmat(EEG,'timelimits',[-0.3 0.8]);
 
         %% artifacts
@@ -225,7 +228,7 @@ for s = 1:length(sublist)
 
         %% GLM fit - deconvolution
         EEG = uf_glmfit(EEG);
-        EEG = uf_condense(EEG); % (strictly speaking optional, but recommended)
+        uf_dc = uf_condense(EEG); % (strictly speaking optional, but recommended)
     
         %% GLM fit - no deconvolution
         EEG_epoch = uf_epoch(EEG,'timelimits',[-0.3 0.8]);
@@ -235,55 +238,74 @@ for s = 1:length(sublist)
         %% Extract overlap-corrected single trial ERPs
         cfg=[];
         cfg.alignto = 'fix_R';
-        cfg.baseline = [-100, 0];
+        % cfg.baseline = [-100, 0];
         cfg.winrej = winrej;
         cfg = [fieldnames(cfg),struct2cell(cfg)].';
-        dc_EEG = uf_getERP(EEG ,'type','modelled','addResiduals',1,'channel',1:length(EEG.chanlocs),cfg{:});
-        set(0,'CurrentFigure',v);clf
+        dc_FRP = uf_getERP(EEG ,'type','modelled','addResiduals',1,'channel',1:length(EEG.chanlocs),cfg{:});
+        raw_FRP = uf_getERP(EEG ,'type','raw','addResiduals',0,'channel',1:length(EEG.chanlocs),cfg{:});
+        dc_FRP_noresid = uf_getERP(EEG ,'type','modelled','addResiduals',0,'channel',1:length(EEG.chanlocs),cfg{:});
 
-        channels = 1:length(dc_EEG.chanlocs);
-        keep_evt = struct2table(dc_EEG.urevent);
-        
+        %% plot FRPs and save single trials
+        set(0,'CurrentFigure',v);clf
+        colororder("glow12")
+        channels = 1:length(dc_FRP.chanlocs);
+        keep_evt = struct2table(dc_FRP.urevent);
+        ax1=subplot(2,1,1);
+        ax2=subplot(2,1,2);
         for c = channels
-            dcFRP = squeeze(dc_EEG.data(c,:,:));
+            dcFRPi = squeeze(dc_FRP.data(c,:,:));
+            rawFRPi = squeeze(raw_FRP.data(c,:,:));
+
+            % rawFRPi=squeeze(EEG_epoch.data(c,:,keep_evt.urevent));
             % checn n nunique values
-            nuniqueEEG = length(unique(dcFRP));
+            nuniqueEEG = length(unique(dcFRPi));
             % plot to check
-            plot(dc_EEG.times,mean(dcFRP,2))
+            subplot(2,1,1)
+            title('raw FRP')
+            plot(dc_FRP.times,mean(rawFRPi,2),'LineWidth',2);
             hold on
-            chanlabel = dc_EEG.chanlocs(c).labels;
-            writematrix(dcFRP,fullfile(dir_pre,unfdir, [pID '_unfoldedFRP-reading_' chanlabel '.csv']));
+            subplot(2,1,2)
+            title('deconvolved FRP')
+            plot(dc_FRP.times,mean(dcFRPi,2),'LineWidth',2);
+            hold on
+            chanlabel = dc_FRP.chanlocs(c).labels;
+            writematrix(dcFRPi,fullfile(dir_pre,unfdir, [pID '_unfoldedFRP-reading_' chanlabel '.csv']));
+            writematrix(rawFRPi,fullfile(dir_pre,unfdir, [pID '_rawFRP-reading_' chanlabel '.csv']));
+
         end
-        legend({dc_EEG.chanlocs.labels})
+        sgtitle(pID)
+        legend({dc_FRP.chanlocs.labels})
         saveas(gcf,fullfile(dir_pre,unfdir,[pID '_butterfly.png']) )
 
         %% N400 magnitude and latency
-        % [mag, lat] = getERPmagnitude(dc_EEG, [300, 500], keep_ix
+        % [mag, lat] = getERPmagnitude(dc_FRP, [300, 500], keep_ix
         win=[300 500];
-        sel = find(dc_EEG.times<= win(2) & dc_EEG.times>=win(1));
+        sel = find(dc_FRP.times<= win(2) & dc_FRP.times>=win(1));
         % what about winrej trials? are they a;ready removed? 
         for c = channels
-            y=dc_EEG.data;
+            y=dc_FRP.data;
             y = y(c,sel,:);
             [m, ix] = max(abs(y),[],2);
             mag = zeros(size(ix(:))); % max val for each trial. I'm being dumb but cant work out how to vectorise this rn
             for z = 1:length(ix(:))% loop over trials
                 mag(z) = y(1,ix(z),z);
             end
-            lat = squeeze(dc_EEG.times(sel(squeeze(ix))));
-            chanlabel = dc_EEG.chanlocs(c).labels;
+            lat = squeeze(dc_FRP.times(sel(squeeze(ix))));
+            chanlabel = dc_FRP.chanlocs(c).labels;
             keep_evt.(['n400_magnitude_' chanlabel]) = mag;
             keep_evt.(['n400_latency_' chanlabel]) = lat';
         end
         % convert durations to ms from samples
-        keep_evt.latency = keep_evt.latency*sr_orig/dc_EEG.srate;
-        keep_evt.duration = keep_evt.duration*sr_orig/dc_EEG.srate;
+        keep_evt.latency = keep_evt.latency*sr_orig/dc_FRP.srate;
+        keep_evt.duration = keep_evt.duration*sr_orig/dc_FRP.srate;
         writetable(keep_evt, fullfile(dir_pre,unfdir,[pID '_reading_N400_stats.csv']));        %% Plot single trials
         
-        %% plot single trials
+        %% plot single trials ERP image
         cfg=[];
         cfg.alignto = 'fix_R';
         cfg.winrej = winrej;
+        cfg.sort_alignto = 'fix_R';
+        cfg.sort_time = [eps 0.8];
         % % cfg.keep={{'task','reading'}}; % which event(s) predictor(s) pair(s) to keep   {'eventA',{'stimB'}} (or a cell array of such cell arrays)
         % cfg.split_by = 'task';
         cfg.figure=0;
@@ -291,23 +313,22 @@ for s = 1:length(sublist)
 
         set(0,'CurrentFigure',v); clf
         uf_erpimage(EEG,'type','raw','channel',1, cfg{:})
-        set(v, 'Position',[   616   707   806   310])
+        % set(v, 'Position',[   616   707   806   310])
         saveas(gcf,fullfile(dir_pre,unfdir,[pID '_raw_trialwise.png']) )
 
         set(0,'CurrentFigure',v); clf
-        uf_erpimage( EEG ,'type','modelled','addResiduals',1,'channel',1,cfg{:}); 
-        set(v, 'Position',[   616   707   806   310])
+        xx=uf_erpimage( EEG ,'type','modelled','addResiduals',1,'channel',1,cfg{:}); 
+        % set(v, 'Position',[   616   707   806   310])
         saveas(gcf,fullfile(dir_pre,unfdir,[pID '_deconv_trialwise.png']) )
 
         set(0,'CurrentFigure',v); clf
         uf_erpimage( EEG ,'type','residual','channel',1,cfg{:}); 
-        set(v, 'Position',[   616   707   806   310])
         saveas(gcf,fullfile(dir_pre,unfdir,[pID '_resid_trialwise.png']) )
 
         %% plot estimated ERP compare to no-deconvolution approach
         % without deconv
         set(0,'CurrentFigure',v); clf
-        g = uf_plotParam(uf_nodc,'channel',1,'deconv',0,'baseline',[-0.1 0],'add_intercept' ,1,'figure',0);
+        g = uf_plotParam(uf_nodc,'channel',1,'deconv',0,'baseline',[-0.1 0],'add_intercept' ,1,'figure',0,'sameyaxis','independent');
 
         % set nice colors
         for gg = 1:length(g.results.geom_line_handle)
@@ -315,7 +336,7 @@ for s = 1:length(sublist)
         end
 
         % with deconv
-        g = uf_plotParam(EEG,'channel',1,'deconv',1,'baseline',[-0.1 0],'add_intercept' ,1,'gramm',g,'figure',0);
+        g = uf_plotParam(uf_dc,'channel',1,'deconv',1,'baseline',[-0.1 0],'add_intercept' ,1,'gramm',g,'figure',0,'sameyaxis','independent');
         % set nice colors
         for gg = 1:length(g.results.geom_line_handle)
             g.results.geom_line_handle(gg).EdgeColor = [0 200 0]/255;
@@ -327,6 +348,6 @@ for s = 1:length(sublist)
     
         %% save processed EEG
         pop_saveset(EEG, 'filename',pID, 'filepath',fullfile(dir_pre,unfdir), 'savemode','onefile')
-        % pop_saveset(dc_EEG, 'filename',[pID '_dc_epochs'], 'filepath',fullfile(dir_pre,unfdir), 'savemode','onefile')
+        % pop_saveset(dc_FRP, 'filename',[pID '_dc_epochs'], 'filepath',fullfile(dir_pre,unfdir), 'savemode','onefile')
 
 end
