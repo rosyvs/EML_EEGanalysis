@@ -10,14 +10,14 @@ init_unfold
 hasTriggerList =readtable('triggerSources.csv');
 %%%%%%%%%
 repro= 0; % re do analysis or just read in from file?
-sublist = [ 128:158]; % TODO: replace with full sublist, short list used for dev
+sublist = [ 159:181]; % TODO: replace with full sublist, short list used for dev
 %%%%%%%%%
 
 exclude_linenoise = [30 36 98 101 102 109 111 114 118 122 125 131 134 136 139]; % TODO: deal with this line noise
 exclude_noise = [32 86]; %n other noise such as excessive jumps, blinks -  131? , movement
 exclude_movement = [];
 exclude_missingevents = [52 57 73 111 120 153]; % 57 73 because no eyetracking, others because EEG stopped recording early
-exclude_noEEG = [1:18 23 77 88 138 79 87 92 127]; % 79 onwards missing from reparsed fixations
+exclude_noEEG = [1:18 23 77 88 138 79 87 92 127 33 129 152]; % 79 onwards missing from reparsed fixations
 exclude_other = [22:24 26 27 31 39 40 78 160]; % TODO find reason for these - no .set why?
 exclude_glmfitfail = [19 35 68 147 149 ] ; % 54 onwards are only failing with sac splines
 exclude = unique([exclude_linenoise exclude_noise exclude_movement exclude_missingevents exclude_noEEG exclude_glmfitfail exclude_other]); % Subj to exclude because no eeg or no trigger etc.
@@ -238,12 +238,12 @@ for s = 1:length(sublist)
         %% Extract overlap-corrected single trial ERPs
         cfg=[];
         cfg.alignto = 'fix_R';
-        % cfg.baseline = [-100, 0];
+        cfg.baseline = [-100, 0];
         cfg.winrej = winrej;
         cfg = [fieldnames(cfg),struct2cell(cfg)].';
         dc_FRP = uf_getERP(EEG ,'type','modelled','addResiduals',1,'channel',1:length(EEG.chanlocs),cfg{:});
         raw_FRP = uf_getERP(EEG ,'type','raw','addResiduals',0,'channel',1:length(EEG.chanlocs),cfg{:});
-        dc_FRP_noresid = uf_getERP(EEG ,'type','modelled','addResiduals',0,'channel',1:length(EEG.chanlocs),cfg{:});
+        % dc_FRP_noresid = uf_getERP(EEG ,'type','modelled','addResiduals',0,'channel',1:length(EEG.chanlocs),cfg{:});
 
         %% plot FRPs and save single trials
         set(0,'CurrentFigure',v);clf
@@ -317,7 +317,7 @@ for s = 1:length(sublist)
         saveas(gcf,fullfile(dir_pre,unfdir,[pID '_raw_trialwise.png']) )
 
         set(0,'CurrentFigure',v); clf
-        xx=uf_erpimage( EEG ,'type','modelled','addResiduals',1,'channel',1,cfg{:}); 
+        uf_erpimage( EEG ,'type','modelled','addResiduals',1,'channel',1,cfg{:}); 
         % set(v, 'Position',[   616   707   806   310])
         saveas(gcf,fullfile(dir_pre,unfdir,[pID '_deconv_trialwise.png']) )
 

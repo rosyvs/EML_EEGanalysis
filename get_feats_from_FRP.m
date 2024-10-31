@@ -7,7 +7,7 @@ clear all; close all force
 % use only file w reliable trigger
 hasTriggerList =readtable('triggerSources.csv');
 %%%%%%%%%
-sublist = 19:158; % TODO: replace with full sublist, short list used for dev
+sublist = 19:181; % TODO: replace with full sublist, short list used for dev
 %%%%%%%%%
 exclude_linenoise = [30 36 98 101 102 109 111 114 118 122 125 131 134 136 139]; % TODO: deal with this line noise
 exclude_noise = [32 86]; %n other noise such as excessive jumps, blinks -  131? , movement
@@ -26,8 +26,12 @@ dir_pre = fullfile('/Volumes/Blue1TB/EEG_processed') ; % prepro in MNE
 dir_in = fullfile(dir_pre, 'preprocessed_set');
 dir_fif = fullfile(dir_pre, 'preprocessed_fif');
 
-unfdir = '/Volumes/Blue1TB/EEG_processed/unfolded_FRP_reparsed_v5';
-featdir = '/Volumes/Blue1TB/EEG_processed/unfolded_FRP_reparsed_v5/n400_stats_recomputed/';
+% FRP in
+unfdir = '/Volumes/Blue1TB/EEG_processed/unfolded_FRP_reparsed_v6';
+fn_stem='_unfoldedFRP-reading_';
+
+% Features out
+featdir = '/Volumes/Blue1TB/EEG_processed/unfolded_FRP_reparsed_v6/n400_stats_recomputed/';
 mkdir(featdir)
 
 times = -300:10:790; % entire FRP time basis
@@ -50,7 +54,7 @@ for s = 1:length(sublist)
         % loop over channels and recompute features per fixation
         for c = channels
             chanlabel = chanlabels{c};
-            dcFRP = readmatrix(fullfile(unfdir, [pID '_unfoldedFRP-reading_' chanlabel '.csv']));
+            dcFRP = readmatrix(fullfile(unfdir, [pID fn_stem chanlabel '.csv']));
 
      
             %% N400 features
@@ -58,22 +62,28 @@ for s = 1:length(sublist)
             sel = find(times<= win(2) & times>=win(1));
             y=dcFRP;
             y = y(sel,:);
-            [m, ix] = max(y,[],1);
+
+            % absolute max magnitude (regardless of polarity)
+            [mag, ix] = max(abs(y),[],1);
             mag = zeros(size(ix(:))); % max val for each trial. I'm being dumb but cant work out how to vectorise this rn
-            for z = 1:length(ix(:))% loop over trials
-                mag(z) = y(ix(z),z);
-            end
             lat = squeeze(times(sel(squeeze(ix))));
-            stats.(['n400_max_magnitude_' chanlabel]) = mag;
+            keep_evt.(['n400_magnitude_' chanlabel]) = mag';
+            keep_evt.(['n400_latency_' chanlabel]) = lat';
+
+            % max 
+            [mag, ix] = max(y,[],1);
+            lat = squeeze(times(sel(squeeze(ix))));
+            stats.(['n400_max_magnitude_' chanlabel]) = mag';
             stats.(['n400_max_latency_' chanlabel]) = lat';
 
-            [m, ix] = min(y,[],1);
-            mag = zeros(size(ix(:))); % min val for each trial. I'm being dumb but cant work out how to vectorise this rn
-            for z = 1:length(ix(:))% loop over trials
-                mag(z) = y(ix(z),z);
-            end
+            % min
+            [mag, ix] = min(y,[],1);
+            % mag = zeros(size(ix(:))); % min val for each trial. I'm being dumb but cant work out how to vectorise this rn
+            % for z = 1:length(ix(:))% loop over trials
+            %     mag(z) = y(ix(z),z);
+            % end
             lat = squeeze(times(sel(squeeze(ix))));
-            stats.(['n400_min_magnitude_' chanlabel]) = mag;
+            stats.(['n400_min_magnitude_' chanlabel]) = mag';
             stats.(['n400_min_latency_' chanlabel]) = lat';
             
             % zero crossings
