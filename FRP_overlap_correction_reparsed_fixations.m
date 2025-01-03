@@ -9,8 +9,7 @@ init_unfold
 % use only file w reliable trigger
 hasTriggerList =readtable('triggerSources.csv');
 %%%%%%%%%
-repro= 0; % re do analysis or just read in from file?
-sublist = [ 159:181]; % TODO: replace with full sublist, short list used for dev
+sublist = [181]; % TODO: replace with full sublist, short list used for dev
 %%%%%%%%%
 
 exclude_linenoise = [30 36 98 101 102 109 111 114 118 122 125 131 134 136 139]; % TODO: deal with this line noise
@@ -18,7 +17,7 @@ exclude_noise = [32 86]; %n other noise such as excessive jumps, blinks -  131? 
 exclude_movement = [];
 exclude_missingevents = [52 57 73 111 120 153]; % 57 73 because no eyetracking, others because EEG stopped recording early
 exclude_noEEG = [1:18 23 77 88 138 79 87 92 127 33 129 152]; % 79 onwards missing from reparsed fixations
-exclude_other = [22:24 26 27 31 39 40 78 160]; % TODO find reason for these - no .set why?
+exclude_other = [22:24 26 27 31 39 40 78 159 160 173 174 179 180]; % TODO find reason for these - no .set why? # 179 no gaze, 181 no reparsed fixations
 exclude_glmfitfail = [19 35 68 147 149 ] ; % 54 onwards are only failing with sac splines
 exclude = unique([exclude_linenoise exclude_noise exclude_movement exclude_missingevents exclude_noEEG exclude_glmfitfail exclude_other]); % Subj to exclude because no eeg or no trigger etc.
 sublist = sublist(~ismember(sublist,exclude) );
@@ -238,20 +237,24 @@ for s = 1:length(sublist)
         %% Extract overlap-corrected single trial ERPs
         cfg=[];
         cfg.alignto = 'fix_R';
-        cfg.baseline = [-100, 0];
+        cfg.baseline = [-100, 0]; 
         cfg.winrej = winrej;
         cfg = [fieldnames(cfg),struct2cell(cfg)].';
         dc_FRP = uf_getERP(EEG ,'type','modelled','addResiduals',1,'channel',1:length(EEG.chanlocs),cfg{:});
         raw_FRP = uf_getERP(EEG ,'type','raw','addResiduals',0,'channel',1:length(EEG.chanlocs),cfg{:});
         % dc_FRP_noresid = uf_getERP(EEG ,'type','modelled','addResiduals',0,'channel',1:length(EEG.chanlocs),cfg{:});
-
+        
         %% plot FRPs and save single trials
         set(0,'CurrentFigure',v);clf
         colororder("glow12")
         channels = 1:length(dc_FRP.chanlocs);
         keep_evt = struct2table(dc_FRP.urevent);
         ax1=subplot(2,1,1);
+                % plto baseline at y=0 on top of existing plot
+        plot([dc_FRP.times(1) dc_FRP.times(end)],[0 0],'k--')
         ax2=subplot(2,1,2);
+                % plto baseline at y=0 on top of existing plot
+        plot([dc_FRP.times(1) dc_FRP.times(end)],[0 0],'k--')
         for c = channels
             dcFRPi = squeeze(dc_FRP.data(c,:,:));
             rawFRPi = squeeze(raw_FRP.data(c,:,:));
@@ -273,8 +276,12 @@ for s = 1:length(sublist)
             writematrix(rawFRPi,fullfile(dir_pre,unfdir, [pID '_rawFRP-reading_' chanlabel '.csv']));
 
         end
+        % plto baseline at y=0 on top of existing plot
+        plot([dc_FRP.times(1) dc_FRP.times(end)],[0 0],'k--')
+
         sgtitle(pID)
         legend({dc_FRP.chanlocs.labels})
+        set(v, 'Position',[   616   707   806   500]);
         saveas(gcf,fullfile(dir_pre,unfdir,[pID '_butterfly.png']) )
 
         %% N400 magnitude and latency

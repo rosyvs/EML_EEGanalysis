@@ -53,7 +53,7 @@
 %%
 clear all; close all
 %%%%%%%%%%%%%%%%%%%
-sublist = [1:9]; % subject 19 is the first with EEG.
+sublist = [179:181]; % subject 19 is the first with EEG.
 %%%%%%%%%%%%%%%%%%%
 
 copy_to_dropbox=1; % whether to additionally attempt copy of _events files to dropbox, if data is being read from local copy
@@ -64,7 +64,7 @@ datapath = '/Volumes/Blue1TB/EyeMindLink/Data/'% '~/Dropbox (Emotive Computing)/
 % events present
 
 
-exclude = [1 2 77 88 138 168];
+exclude = [1 2 77 88 138 ];
 sublist = sublist(~ismember(sublist,exclude));
 
 beh_data = readtable('../../Data/EML1_allResponsesMain.csv');
@@ -402,7 +402,8 @@ for s = 1:length(sublist)
                 end
             end
         else
-            nos_sd = 1
+            disp('SD card trigger parsing failed.')
+            no_sd = 1;
         end
         %
         

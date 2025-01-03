@@ -116,7 +116,15 @@ keep = which_parameter_to_keep(ufresult,cfg);
 
 % %% calculate the stuff for the erpimage (modified by RVS to skip sortvector
 EEG_out = get_sortvector(cfg,EEG_out);
-
+% Subtract the mean value during the baseline window from each trial
+if ~isempty(cfg.baseline)
+    baseline_idx = (EEG_out.times >= cfg.baseline(1)) & (EEG_out.times < cfg.baseline(2));
+    disp(['subtracting mean over ' num2str(sum(baseline_idx)) ' baseline samples' ])
+    baseline_mean = mean(EEG_out.data(:, baseline_idx, :), 2);
+    EEG_out.data = bsxfun(@minus, EEG_out.data, baseline_mean);
+    % assert mean in the baseline is 0 for all atrials
+    assert(all(all(abs(mean(EEG_out.data(:, baseline_idx, :), 2)) < 1e-3)), 'Baseline correction failed')
+end
 end
 
 function [cfg,EEG_epoch,ufresult] = parse_input(EEG,input,n_argout_caller)
@@ -285,10 +293,18 @@ else
         % in case of addResiduals == 2 the residuals are already calculated
         data_yhat = calculate_yhat(ufresult.unfold.Xdc,ufresult,cfg,1:size(ufresult.unfold.X,2));
     end
-    % Baseline Correction
-    if ~isempty(cfg.baseline)
-        data= bsxfun(@minus,data ,mean(data(:,(ufresult.times>=cfg.baseline(1))& (ufresult.times<cfg.baseline(2)),:),2));
-    end
+    % % Baseline Correction
+    % % Subtract the mean value during the baseline window from each trial
+    % if ~isempty(cfg.baseline)
+    %     baseline_idx = (ufresult.times >= cfg.baseline(1)) & (ufresult.times < cfg.baseline(2));
+    %     baseline_mean = mean(data(:, baseline_idx, :), 2);
+    %     data = bsxfun(@minus, data, baseline_mean);
+    %     % assert mean in the baseline is 0 for all atrials
+    %     assert(all(all(abs(mean(data(:, baseline_idx, :), 2)) < 1e-10)), 'Baseline correction failed')
+    % end
+    % if ~isempty(cfg.baseline)
+    %     data= bsxfun(@minus,data ,mean(data(:,(ufresult.times>=cfg.baseline(1))& (ufresult.times<cfg.baseline(2)),:),2));
+    % end
 end
 end
 

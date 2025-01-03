@@ -4,13 +4,13 @@ clear all; close all force
 hasTriggerList =readtable('triggerSources.csv');
 %%%%%%%%%
 repro= 0; % re do TF analysis or just read in from file?
-sublist = [ 1:158];
+sublist = [ 1:181];
 %%%%%%%%%
 exclude_linenoise = [30 36 98 101 102 109 111 114 118 122 125 131 134 136 139];
 exclude_noise = [32 86]; %n other noise such as excessive jumps, blinks -  131? , movement
 exclude_missingevents = [52 57 73 111 120 153]; % 57 73 because no eyetracking, others because EEG stopped recording early
-exclude_noEEG = [1:18 23 77 88 138];
-exclude_other = [20:26 27 31 39 40 78 160]; % TODO find reason for these - no .set why?
+exclude_noEEG = [1:18 23 77 88 138 172];
+exclude_other = [20:26 27 31 39 40 78 160 167 168 170 171 175 176 177 178 179]; % TODO find reason for these - no .set why? 170 onwards needs edf2asc. 
 exclude = unique([exclude_linenoise exclude_noise exclude_missingevents exclude_noEEG exclude_other]); % Subj to exclude because no eeg or no trigger etc. 
 sublist = sublist(~ismember(sublist,exclude) );
 %sublist = sublist( ismember(sublist,find(hasTriggerList.sdcard==1)));
@@ -36,8 +36,9 @@ wininterval = 1000; % ms interval between intervals (if less than winlength, epo
 %%
 T_all = [];
 Tw_all = [];
+blinkybois=[];
 
-
+ft_info off
 
 if repro==1
     eeglab nogui % sets path defaults
@@ -244,6 +245,7 @@ if repro==1
             pause(0.25)
             beep
             disp("***WARNING*** blinks contaminate over half of windows. You may wish to exclude this participant***")
+            blinkybois = [blinkybois; sublist(s)]
             fprintf(fileID,"***WARNING*** blinks contaminate over half of windows. You may wish to exclude this participant***")
             fprintf(fileID,'\n');
         end
@@ -557,7 +559,7 @@ if repro==1
         
         %% check correlation coefficient between features
         h= figure(3);
-        colormap( getPyPlot_cMap('RdBu') )
+        colormap( brewermap([],'RdBu') )
         imagesc(corr(table2array(T(:,varfun(@isnumeric,T,'output','uniform'))),'Rows','pairwise'))                                 % Original 'XTick' Values
         xtlbl = T.Properties.VariableNames;                     % New 'XTickLabel' Vector
         set(gca, 'XTick',1:length(xtlbl), 'XTickLabel',xtlbl, 'XTickLabelRotation',90)
@@ -567,7 +569,7 @@ if repro==1
         export_fig(fullfile(dir_pre, oscdir, [pID, '_featcorrel.png']),'-png')
         
         h= figure(3);
-        colormap( getPyPlot_cMap('RdBu') )
+        colormap( brewermap([],'RdBu') )
         imagesc(corr(table2array(Tw(:,varfun(@isnumeric,Tw,'output','uniform'))),'Rows','pairwise'))                                 % Original 'XTick' Values
         xtlbl = Tw.Properties.VariableNames;                     % New 'XTickLabel' Vector
         set(gca, 'XTick',1:length(xtlbl), 'XTickLabel',xtlbl, 'XTickLabelRotation',90)
@@ -626,3 +628,5 @@ for s = 1:length(sublist)
 end
 writetable(T_all,fullfile(dir_pre, oscdir, ['page_band_features_n' num2str(length(unique(cellstr(T_all.pID)))) '_upto_' pID '.csv']))
 writetable(Tw_all,fullfile(dir_pre, oscdir, ['win_band_features_n' num2str(length(unique(cellstr(T_all.pID)))) '_upto_' pID '.csv']))
+
+disp(['blinks contaminated over 50% of windows for ' blinkybois])

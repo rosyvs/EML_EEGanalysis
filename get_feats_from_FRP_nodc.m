@@ -8,15 +8,15 @@ init_unfold
 % use only file w reliable trigger
 hasTriggerList =readtable('triggerSources.csv');
 %%%%%%%%%
-sublist = 19:158; % TODO: replace with full sublist, short list used for dev
+sublist = 19:181; % TODO: replace with full sublist, short list used for dev
 %%%%%%%%%
 exclude_linenoise = [30 36 98 101 102 109 111 114 118 122 125 131 134 136 139]; % TODO: deal with this line noise
 exclude_noise = [32 86]; %n other noise such as excessive jumps, blinks -  131? , movement
 exclude_movement = [];
 exclude_missingevents = [52 57 73 111 120 153]; % 57 73 because no eyetracking, others because EEG stopped recording early
-exclude_noEEG = [1:18 23 77 88 138];
-exclude_other = [22:24 26 27 31 39 40 78 160]; % TODO find reason for these - no .set why?
-exclude_glmfitfail = [35 68 147 149];
+exclude_noEEG = [1:18 23 77 88 138 79 87 92 127 33 129 152]; % 79 onwards missing from reparsed fixations
+exclude_other = [22:24 26 27 31 39 40 78 159 160 173 174 179 180]; % TODO find reason for these - no .set why? # 179 no gaze, 181 no reparsed fixations
+exclude_glmfitfail = [19 35 68 147 149 ] ; % 54 onwards are only failing with sac splines
 exclude = unique([exclude_linenoise exclude_noise exclude_movement exclude_missingevents exclude_noEEG exclude_glmfitfail exclude_other]); % Subj to exclude because no eeg or no trigger etc.
 sublist = sublist(~ismember(sublist,exclude) );
 %sublist = sublist( ismember(sublist,find(hasTriggerList.sdcard==1)));
@@ -27,13 +27,13 @@ dir_pre = fullfile('/Volumes/Blue1TB/EEG_processed') ; % prepro in MNE
 dir_in = fullfile(dir_pre, 'preprocessed_set');
 dir_fif = fullfile(dir_pre, 'preprocessed_fif');
 
-unfdir = '/Volumes/Blue1TB/EEG_processed/unfolded_FRP_reparsed_v5/';
-featdir = '/Volumes/Blue1TB/EEG_processed/unfolded_FRP_reparsed_v5/n400_stats_nodc/';
+unfdir = '/Volumes/Blue1TB/EEG_processed/unfolded_FRP_reparsed_v7/';
+featdir = '/Volumes/Blue1TB/EEG_processed/unfolded_FRP_reparsed_v7/n400_stats_nodc/';
 mkdir(featdir)
 
 times = -300:10:790; % entire FRP time basis
 cols = {'type','latency','duration','task','identifier','page_fixation_ix','IA_ID'};
-
+FRPavg=[]; FRPall=[];
 for s = 1:length(sublist)
         tic;
         clear EEG stats
@@ -109,12 +109,33 @@ for s = 1:length(sublist)
             % mean value
             stats.(['n400_mean_' chanlabel]) = mean(y,1)';
 
+            %% P1 features (for latency see https://www.mdpi.com/2411-5150/4/1/11)
+            win=[70 120];
+            sel = find(times<= win(2) & times>=win(1));
+            y=squeeze(nodc_FRP(c,sel,:));
+            % mean value
+            stats.(['p1_mean_' chanlabel]) = mean(y,1)';
+
+            %% N1 features (for latency see https://www.mdpi.com/2411-5150/4/1/11)
+            win=[140 280]; 
+            sel = find(times<= win(2) & times>=win(1));
+            y=squeeze(nodc_FRP(c,sel,:));
+            % mean value
+            stats.(['n1_mean_' chanlabel]) = mean(y,1)';
+
         end
 
-        writetable(stats, fullfile(featdir,[pID '_reading_N400_stats.csv']));        %% Plot single trials
-        
-     
+        %% get average FRP 
+        FRPavg=mean(nodc_FRP,3);
+        FRPall(:,:,s) =FRPavg;
     
+        writetable(stats, fullfile(featdir,[pID '_reading_N400_stats.csv'])); 
 
 end
+colororder("glow12")
+figure(1)
+plot(times,mean(FRPall,3),'LineWidth',2);
+hold on
+plot(times, zeros(size(times)))
+legend(chanlabels)
 

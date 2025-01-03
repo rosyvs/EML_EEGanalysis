@@ -1,0 +1,86 @@
+---
+title: "QC using readingVsham"
+author: 'Rosy Southwell'
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    toc: true
+    toc_float: 
+      collapsed: false
+      smooth_scroll: false
+    toc_depth: 4
+editor_options: 
+  chunk_output_type: inline
+---
+```{r load_libs, include=FALSE, results="hide"}
+packages <- c( "dplyr", "tibble","tidyverse", "reshape2", "magrittr", "data.table", "gridExtra", "beepr",  "ggplot2",'cocor','stringr','sjPlot')
+ipak <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg)) 
+    install.packages(new.pkg, dependencies = TRUE)
+  sapply(pkg, require, character.only = TRUE)
+}
+ipak(packages)
+library(tidyverse)
+options("scipen"=100, "digits"=4)
+
+model_dir <- '/Users/roso8920/Emotive Computing Dropbox/Rosy Southwell/EML Rosy/Analysis/Models/'
+
+source(paste0(model_dir, 'eml_classifier_performance.R'))
+
+```
+
+# Read in model predictions
+```{r read_in_models,results="hide"}
+o <- 'isReading' # outcome
+m <- 'LogReg'# model
+f <- 'winEEG19'# feature list
+agg_level <- 'win'
+if(agg_level=='win'){id_vars=c('ParticipantID','Text','PageNum')
+} else if (agg_level=='page'){id_vars=c('ParticipantID','Text','PageNum')} # usually categorical variables used for identifying obervarions
+
+feature_vars = read_lines(paste0(model_dir,'feature_lists/', f,'.txt') )
+
+modelName<-paste0(m,'_',o,'_from_', f)
+data_dir <- paste0(model_dir,'model_outputs/',o)
+
+## ROW-WISE COMPUTATIONS: compile into long format
+prob_all_runs <- read.csv(paste0(data_dir, '/prob_all_runs_', modelName, '.csv'))
+# longify data
+longModel <- prob_all_runs
+longModel <- rowid_to_column(longModel, 'obs') # enumerate observations
+longModel  <- gather(longModel , key='run',value='prob',-c(id_vars,'Score','obs'))
+longModel$pred <- as.numeric(longModel$prob>0.5) # retrieve binary classification from class probs
+longModel$correct <- longModel$pred==longModel$Score
+nrun=ncol(prob_all_runs %>% select(contains('run'))) # total number of runs (which may be diff for each model)
+# 2. Compute ParticipantID-level statistics, for each run and model
+
+subRunSummary <- longModel %>% group_by(ParticipantID,run) %>% summarise(
+meanScore=mean(as.numeric(Score), na.rm=TRUE),
+meanPred=mean(as.numeric(pred), na.rm=TRUE),
+accuracy=mean(as.numeric(correct, na.rm=T)),
+meanProb=mean(prob, na.rm=TRUE),
+n=n(),
+AUROC=roc(Score, prob,levels = c(0, 1), direction = "<")$auc[1]
+) %>% ungroup()
+
+subSummary <- subRunSummary %>% group_by(ParticipantID) %>% summarise(
+meanScore=mean(meanScore, na.rm=TRUE),
+meanPred=mean(as.numeric(meanPred), na.rm=TRUE),
+meanAccuracy=mean(as.numeric(accuracy, na.rm=T)),
+meanProb=mean(meanProb, na.rm=TRUE),
+meanAUROC=mean(AUROC, na.rm=T),
+medianAUROC=median(AUROC, na.rm=T),
+                   n=median(n,na.rm=T)
+) %>% ungroup()
+ 
+exclude_list <- levels(subSummary$ParticipantID[subSummary$meanAUROC<0.55] %>% droplevels())
+exclude_list
+# thisSummary <- eml_classifier_performance(prob_all_runs)
+# 
+# prob_all_runs <- rowid_to_column(prob_all_runs,'rowid')
+# thisMod <- gather(prob_all_runs, key='run',value='prob',-c(id_vars,'Score','rowid'))
+# thisMod$pred <- thisMod$prob>0.5
+# thisMod$correct <- (thisMod$pred == thisMod$Score)
+
+```

@@ -6,12 +6,12 @@ EEG analysis for EML: preprocessing pipeline
 """
 
 reprepro = True # re-do preprocessing. If False, checks outdir and skips participants with a prepro'd file
-plotTF = False
+plotTF = True
 datadir = os.path.normpath('/Volumes/Blue1TB/EyeMindLink/Data')
 outdir = os.path.normpath('../../Data/EEG_processed/preprocessed_fif/')# save directory for processed EEG data
 #triggerSources = pd.read_csv('triggerSources.csv') # available triggers (as checked by Rosy)
 fnroot = 'EML1_'
-participants = range(156,182)
+participants = range(176,182)
 
 for p in participants:
     pID= fnroot + '{:03d}'.format(p)  
@@ -76,6 +76,7 @@ for p in participants:
         metadata_file.write(e.prepro.info['description'])
 
         if plotTF:
+            print("Plotting data...")
             # plt.ion()
             scalings=dict(eeg=50e-6) # y axis scaling
             # plot raw
@@ -93,7 +94,8 @@ for p in participants:
             f2.savefig(os.path.join(outdir, pID +"-preprocessed.png"))
             f3.savefig(os.path.join(outdir, pID +"-rawPSD.png"))
             f4.savefig(os.path.join(outdir, pID +"-preprocessedPSD.png"))
-            # plt.close('all')
+            plt.close('all')
+            print(f"Plots saved to {outdir}")
     else:
         print_and_log("{0}: Skipping preprocessing pipeline.".format(pID))
 

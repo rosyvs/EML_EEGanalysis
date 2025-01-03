@@ -19,8 +19,8 @@ clear all; close all
 eeglab nogui % sets path defaults
 % use only file w reliable trigger
 hasTriggerList =readtable('triggerSources.csv');
-sublist = [171:181];
-exclude = [20:27 31 39 40 78 77 88 138 160 168]; % Subj to exclude because no eeg or no trigger etc.
+sublist = [180:181];
+exclude = [20:27 31 39 40 78 77 88 138 160 168 172 179]; % Subj to exclude because no eeg or no trigger etc.
 sublist = sublist(~ismember(sublist,exclude) );
 %sublist = sublist( ismember(sublist,find(hasTriggerList.sdcard==1)));
 

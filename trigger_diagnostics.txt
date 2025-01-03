@@ -1,0 +1,215 @@
+______Trigger diagnostics for EML1_169______
+252 events in log file
+84 triggers in the streamed .vmrk file
+    84 triggers matched to log events
+Attempting to repair 168 missing triggers in streamed recording using log.
+    Repaired all missing streamed triggers.
+84 triggers in the SD card .vmrk file
+    84 triggers matched to log events
+Attempting to repair 168 missing triggers in SD recording using log.
+    Repaired all missing triggers from SD recording.
+Warning: No log event matches eyetracker message: BIGBREAK 
+> In EML_parseEvents (line 629) 
+Attempting to repair 102 missing triggers in eyetracker data using log timings.
+    Repaired all missing triggers from eyelink data.
+EML1_169: no fNIRS recorded for this participant.
+copying events file to Dropbox
+
+
+
+______Trigger diagnostics for EML1_170______
+EEG streamed over Bluetooth: 1 samples were dropped in total over 1 dropout events
+252 events in log file
+253 triggers in the streamed .vmrk file
+    252 triggers matched to log events
+277 triggers in the SD card .vmrk file
+    252 triggers matched to log events
+WARNING: Eyetracker timestamps are not monotonically increasing. Check if timestamps restart at every part. You may need to rerun edf2asc.exe
+Warning: No log event matches eyetracker message: BIGBREAK 
+> In EML_parseEvents (line 629) 
+Attempting to repair 102 missing triggers in eyetracker data using log timings.
+    Repaired all missing triggers from eyelink data.
+EML1_170: no fNIRS recorded for this participant.
+copying events file to Dropbox
+
+
+
+______Trigger diagnostics for EML1_171______
+252 events in log file
+253 triggers in the streamed .vmrk file
+    252 triggers matched to log events
+nos_sd =
+     1
+WARNING: Eyetracker timestamps are not monotonically increasing. Check if timestamps restart at every part. You may need to rerun edf2asc.exe
+Warning: No log event matches eyetracker message: BIGBREAK 
+> In EML_parseEvents (line 629) 
+Attempting to repair 102 missing triggers in eyetracker data using log timings.
+    Repaired all missing triggers from eyelink data.
+EML1_171: no fNIRS recorded for this participant.
+copying events file to Dropbox
+
+
+
+______Trigger diagnostics for EML1_172______
+252 events in log file
+37 triggers in the streamed .vmrk file
+    37 triggers matched to log events
+***WARNING!!! Too few hardware triggers from stream matched to logged events.
+Trigger repair would be unreliable, so was not attempted. Please use .xdf or SD card recording instead.
+No SD card file (LAxxxxx.vhdr) found. Check filenames
+No (usable) hardware triggers
+Attempting rough timing from LSL triggers
+load_xdf failed - perhaps the xdf file is corrupted. 
+This EEG data is unusable - skipping.
+WARNING: Eyetracker timestamps are not monotonically increasing. Check if timestamps restart at every part. You may need to rerun edf2asc.exe
+Warning: No log event matches eyetracker message: BIGBREAK 
+> In EML_parseEvents (line 629) 
+Attempting to repair 102 missing triggers in eyetracker data using log timings.
+    Repaired all missing triggers from eyelink data.
+EML1_172: no fNIRS recorded for this participant.
+copying events file to Dropbox
+
+
+
+______Trigger diagnostics for EML1_173______
+252 events in log file
+28 triggers in the streamed .vmrk file
+    28 triggers matched to log events
+***WARNING!!! Too few hardware triggers from stream matched to logged events.
+Trigger repair would be unreliable, so was not attempted. Please use .xdf or SD card recording instead.
+nos_sd =
+     1
+Warning: No log event matches eyetracker message: BIGBREAK 
+> In EML_parseEvents (line 629) 
+Attempting to repair 102 missing triggers in eyetracker data using log timings.
+    Repaired all missing triggers from eyelink data.
+EML1_173: no fNIRS recorded for this participant.
+copying events file to Dropbox
+
+
+
+______Trigger diagnostics for EML1_174______
+252 events in log file
+254 triggers in the streamed .vmrk file
+    252 triggers matched to log events
+254 triggers in the SD card .vmrk file
+    252 triggers matched to log events
+Warning: No log event matches eyetracker message: BIGBREAK 
+> In EML_parseEvents (line 629) 
+Attempting to repair 102 missing triggers in eyetracker data using log timings.
+    Repaired all missing triggers from eyelink data.
+EML1_174: no fNIRS recorded for this participant.
+copying events file to Dropbox
+
+
+
+______Trigger diagnostics for EML1_175______
+Insufficient (1) triggers found in streamed .vmrk!
+253 triggers in the SD card .vmrk file
+    252 triggers matched to log events
+WARNING: Eyetracker timestamps are not monotonically increasing. Check if timestamps restart at every part. You may need to rerun edf2asc.exe
+Warning: No log event matches eyetracker message: BIGBREAK 
+> In EML_parseEvents (line 629) 
+Attempting to repair 102 missing triggers in eyetracker data using log timings.
+    Repaired all missing triggers from eyelink data.
+EML1_175: no fNIRS recorded for this participant.
+copying events file to Dropbox
+
+
+
+______Trigger diagnostics for EML1_176______
+252 events in log file
+51 triggers in the streamed .vmrk file
+    51 triggers matched to log events
+***WARNING!!! Too few hardware triggers from stream matched to logged events.
+Trigger repair would be unreliable, so was not attempted. Please use .xdf or SD card recording instead.
+253 triggers in the SD card .vmrk file
+    252 triggers matched to log events
+WARNING: Eyetracker timestamps are not monotonically increasing. Check if timestamps restart at every part. You may need to rerun edf2asc.exe
+Warning: No log event matches eyetracker message: BIGBREAK 
+> In EML_parseEvents (line 629) 
+Attempting to repair 102 missing triggers in eyetracker data using log timings.
+    Repaired all missing triggers from eyelink data.
+EML1_176: no fNIRS recorded for this participant.
+copying events file to Dropbox
+
+
+
+______Trigger diagnostics for EML1_177______
+252 events in log file
+43 triggers in the streamed .vmrk file
+    43 triggers matched to log events
+***WARNING!!! Too few hardware triggers from stream matched to logged events.
+Trigger repair would be unreliable, so was not attempted. Please use .xdf or SD card recording instead.
+253 triggers in the SD card .vmrk file
+    252 triggers matched to log events
+WARNING: Eyetracker timestamps are not monotonically increasing. Check if timestamps restart at every part. You may need to rerun edf2asc.exe
+Warning: No log event matches eyetracker message: BIGBREAK 
+> In EML_parseEvents (line 629) 
+Attempting to repair 102 missing triggers in eyetracker data using log timings.
+    Repaired all missing triggers from eyelink data.
+EML1_177: no fNIRS recorded for this participant.
+copying events file to Dropbox
+
+
+
+______Trigger diagnostics for EML1_178______
+252 events in log file
+253 triggers in the streamed .vmrk file
+    252 triggers matched to log events
+253 triggers in the SD card .vmrk file
+    252 triggers matched to log events
+WARNING: Eyetracker timestamps are not monotonically increasing. Check if timestamps restart at every part. You may need to rerun edf2asc.exe
+Warning: No log event matches eyetracker message: BIGBREAK 
+> In EML_parseEvents (line 629) 
+Attempting to repair 102 missing triggers in eyetracker data using log timings.
+    Repaired all missing triggers from eyelink data.
+EML1_178: no fNIRS recorded for this participant.
+copying events file to Dropbox
+
+
+
+______Trigger diagnostics for EML1_179______
+No triggers found in streamed .vmrk!
+54 triggers in the SD card .vmrk file
+    54 triggers matched to log events
+Attempting to repair 2 missing triggers in SD recording using log.
+    Couldn't repair all missing triggers on SD. Still missing 2
+No eyetracker Message files found! Skipping eyetracker timestamps for EML1_179
+EML1_179: no fNIRS recorded for this participant.
+copying events file to Dropbox
+
+
+
+______Trigger diagnostics for EML1_180______
+EEG streamed over Bluetooth: 15 samples were dropped in total over 4 dropout events
+252 events in log file
+167 triggers in the streamed .vmrk file
+    167 triggers matched to log events
+Attempting to repair 85 missing triggers in streamed recording using log.
+    Repaired all missing streamed triggers.
+167 triggers in the SD card .vmrk file
+    167 triggers matched to log events
+Attempting to repair 85 missing triggers in SD recording using log.
+    Repaired all missing triggers from SD recording.
+Warning: No log event matches eyetracker message: BIGBREAK 
+> In EML_parseEvents (line 629) 
+Attempting to repair 102 missing triggers in eyetracker data using log timings.
+    Repaired all missing triggers from eyelink data.
+EML1_180: no fNIRS recorded for this participant.
+copying events file to Dropbox
+
+
+
+______Trigger diagnostics for EML1_181______
+EEG streamed over Bluetooth: 6 samples were dropped in total over 1 dropout events
+252 events in log file
+253 triggers in the streamed .vmrk file
+    252 triggers matched to log events
+253 triggers in the SD card .vmrk file
+    252 triggers matched to log events
+Warning: No log event matches eyetracker message: BIGBREAK 
+> In EML_parseEvents (line 629) 
+Attempting to repair 102 missing triggers in eyetracker data using log timings.
+    Repaired all missing triggers from eyelink data.
+EML1_181: no fNIRS recorded for this participant.

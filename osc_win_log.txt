@@ -1221,3 +1221,142 @@ EML1_086
 EOG detection recall = 0.72422
 Removing 807/907 epochs
 ***WARNING*** blinks contaminate over half of windows. You may wish to exclude this participant***
+EML1_159
+7/1598 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+746 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 746/1591 epochs
+EML1_159
+7/1598 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+746 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 746/1591 epochs
+
+
+EML1_161
+0/1589 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+1311 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 1311/1589 epochs
+***WARNING*** blinks contaminate over half of windows. You may wish to exclude this participant***
+
+
+EML1_162
+283/2073 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+426 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 426/1790 epochs
+EML1_159
+7/1598 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+746 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 746/1591 epochs
+
+
+EML1_161
+0/1589 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+1311 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 1311/1589 epochs
+***WARNING*** blinks contaminate over half of windows. You may wish to exclude this participant***
+
+
+EML1_162
+283/2073 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+426 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 426/1790 epochs
+
+
+EML1_163
+8/1273 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+403 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 403/1265 epochs
+
+
+EML1_164
+51/1679 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+490 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 490/1628 epochs
+
+
+EML1_165
+0/1308 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+305 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 305/1308 epochs
+
+
+EML1_166
+16/1991 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+920 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 920/1975 epochs
+
+
+EML1_167
+EML1_168
+EML1_169
+18/560 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+248 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 248/542 epochs
+
+
+EML1_173
+0/308 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+155 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 155/308 epochs
+***WARNING*** blinks contaminate over half of windows. You may wish to exclude this participant***
+
+
+EML1_174
+79/2471 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+828 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 828/2392 epochs
+
+
+EML1_180
+16/2185 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+1325 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 1325/2169 epochs
+***WARNING*** blinks contaminate over half of windows. You may wish to exclude this participant***
+
+
+EML1_181
+0/2167 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+1407 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 1407/2167 epochs
+***WARNING*** blinks contaminate over half of windows. You may wish to exclude this participant***
+
+
+EML1_166
+16/1991 windows contain large-magnitude jumps.
+0 windows overlap with ET blinks
+920 windows overlap with EOG-detected blinks
+EOG detection recall = NaN
+Removing 920/1975 epochs
+
+
